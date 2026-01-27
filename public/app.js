@@ -1,4 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // Global variable for current user
+    window.currentUser = null;
     // Session check TEMPORARILY DISABLED - working on fixing redirect loop
     // const isLoggedIn = await checkSession();
     // if (!isLoggedIn) return;
@@ -8,7 +10,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let articles = [];
     let companies = [];
     let currentArticleRow = null;
-    let currentUser = null;
+    // currentUser is now window.currentUser (declared above)
 
     // DOM Elements
     const tabs = document.querySelectorAll('.tab-btn');
@@ -53,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
             try {
-                currentUser = JSON.parse(storedUser);
+                window.currentUser = JSON.parse(storedUser);
                 initializeUserUI();
                 return true;
             } catch (e) {
@@ -67,9 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const response = await fetch('/api/auth/session', { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
-                currentUser = data.user;
+                window.currentUser = data.user;
                 // Save to localStorage for future page loads
-                localStorage.setItem('user', JSON.stringify(currentUser));
+                localStorage.setItem('user', JSON.stringify(window.currentUser));
                 initializeUserUI();
                 return true;
             }
