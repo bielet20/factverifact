@@ -12,6 +12,9 @@ const { hashPassword, verifyPassword, requireAuth, requireRole, getCurrentUser }
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
 
+// Trust proxy - CRITICAL for production behind reverse proxy (Coolify, nginx, etc)
+app.set('trust proxy', 1);
+
 // Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
@@ -25,8 +28,34 @@ app.use(session({
     }
 }));
 
+// CORS configuration - allow production domain
+const allowedOrigins = [
+    'http://localhost:3000',
+    'http://127.0.0.1:3000'
+];
+
+// Add production origin if available
+if (process.env.PRODUCTION_URL) {
+    allowedOrigins.push(process.env.PRODUCTION_URL);
+}
+
 app.use(cors({
-    origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+    origin: function (origin, callback) {
+        // Allow requests with no origin (like mobile apps, curl, Postman)
+        if (!origin) return callback(null, true);
+
+        // Check if origin is in allowed list
+        if (allowedOrigins.indexOf(origin) !== -1) {
+            callback(null, true);
+        } else {
+            // In production, allow any origin from same domain
+            if (process.env.NODE_ENV === 'production') {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        }
+    },
     credentials: true
 }));
 app.use(express.json());
@@ -299,6 +328,11 @@ app.delete('/api/users/:id', requireAuth, requireRole('admin'), (req, res) => {
 // Root endpoint
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Login page redirect (handle /login without .html)
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
 // Company Management Endpoints
