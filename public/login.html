@@ -125,8 +125,16 @@
                     // Save user data to localStorage
                     if (data.user) {
                         localStorage.setItem('user', JSON.stringify(data.user));
+
+                        // Check if user must change password
+                        if (data.user.must_change_password) {
+                            window.location.href = '/change-password.html';
+                        } else {
+                            window.location.href = '/';
+                        }
+                    } else {
+                        window.location.href = '/';
                     }
-                    window.location.href = '/';
                 } else {
                     const data = await response.json();
                     errorDiv.textContent = data.error || 'Error al iniciar sesión';
