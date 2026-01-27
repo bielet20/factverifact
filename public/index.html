@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Facturas - Nofre Plomer</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>📋 Gestión de Facturas</h1>
+                <p>Sistema completo de facturación con artículos y servicios</p>
+            </div>
+            <div class="user-info" id="userInfo" style="display: none;">
+                <span id="userName"></span>
+                <button onclick="logout()" class="btn-logout">Cerrar Sesión</button>
+            </div>
+        </header>
+
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="invoices">Facturas</button>
+            <button class="tab-btn" data-tab="articles">Artículos/Servicios</button>
+            <button class="tab-btn" data-tab="companies">Empresas</button>
+            <button class="tab-btn" data-tab="users" id="usersTab" style="display: none;">Usuarios</button>
+        </nav>
+
+        <main>
+            <!-- INVOICES TAB -->
+            <div id="invoices-tab" class="tab-content active">
+                <section class="card form-section">
+                    <h2>Nueva Factura</h2>
+                    <form id="invoiceForm">
+                        <div class="form-grid">
+                            <div class="form-group">
+                                <label for="invoice_company">Empresa Emisora *</label>
+                                <select id="invoice_company" required>
+                                    <option value="">Seleccionar empresa...</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="invoice_number">Nº Factura *</label>
+                                <input type="text" id="invoice_number" required placeholder="F-2024-001">
+                            </div>
+                            <div class="form-group">
+                                <label for="date">Fecha *</label>
+                                <input type="date" id="date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="client_type">Tipo de Cliente *</label>
+                                <select id="client_type" required>
+                                    <option value="empresa">Empresa</option>
+                                    <option value="particular">Particular</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="client_name">Cliente *</label>
+                                <input type="text" id="client_name" required placeholder="Nombre del cliente">
+                            </div>
+                            <div class="form-group">
+                                <label for="client_cif">NIF/CIF *</label>
+                                <input type="text" id="client_cif" required placeholder="12345678A">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="client_address">Dirección/Obra</label>
+                                <input type="text" id="client_address"
+                                    placeholder="Dirección del cliente o ubicación de la obra">
+                            </div>
+                            <div class="form-group full-width">
+                                <label for="notes">Notas</label>
+                                <input type="text" id="notes" placeholder="Observaciones adicionales">
+                            </div>
+                        </div>
+
+                        <!-- INVOICE ITEMS TABLE (Excel-like) -->
+                        <div class="invoice-items-section">
+                            <div class="section-header">
+                                <h3>Líneas de Factura</h3>
+                                <button type="button" class="btn-add-line" id="addLineBtn">+ Añadir Línea</button>
+                            </div>
+
+                            <div class="table-container excel-table">
+                                <table id="invoiceItemsTable">
+                                    <thead>
+                                        <tr>
+                                            <th style="width: 25%;">Artículo/Servicio</th>
+                                            <th style="width: 30%;">Descripción</th>
+                                            <th style="width: 10%;">Cantidad</th>
+                                            <th style="width: 12%;">Precio Unit.</th>
+                                            <th style="width: 8%;">IVA %</th>
+                                            <th style="width: 12%;">Total</th>
+                                            <th style="width: 3%;"></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="invoiceItemsBody">
+                                        <!-- Lines will be added dynamically -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- TOTALS -->
+                            <div class="totals-panel">
+                                <div class="total-row">
+                                    <span class="total-label">Subtotal:</span>
+                                    <span class="total-value" id="subtotalDisplay">0,00 €</span>
+                                </div>
+                                <div class="total-row">
+                                    <span class="total-label">IVA Total:</span>
+                                    <span class="total-value" id="vatTotalDisplay">0,00 €</span>
+                                </div>
+                                <div class="total-row total-final">
+                                    <span class="total-label">TOTAL:</span>
+                                    <span class="total-value" id="totalDisplay">0,00 €</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-actions">
+                            <button type="submit" class="btn-primary">💾 Guardar Factura</button>
+                            <button type="button" class="btn-secondary" id="clearFormBtn">🗑️ Limpiar</button>
+                        </div>
+                    </form>
+                </section>
+
+                <section class="card list-section">
+                    <h2>Historial de Facturas</h2>
+                    <!-- Advanced Filters Panel -->
+                    <div class="filters-panel">
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>Empresa:</label>
+                                <select id="filter_company">
+                                    <option value="">Todas</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Desde:</label>
+                                <input type="date" id="filter_date_from">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Hasta:</label>
+                                <input type="date" id="filter_date_to">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Cliente:</label>
+                                <input type="text" id="filter_client" placeholder="Buscar cliente...">
+                            </div>
+                        </div>
+
+                        <div class="filter-row">
+                            <div class="filter-group">
+                                <label>Nº Factura:</label>
+                                <input type="text" id="filter_invoice_number" placeholder="Buscar nº...">
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Tipo:</label>
+                                <select id="filter_client_type">
+                                    <option value="">Todos</option>
+                                    <option value="empresa">Empresa</option>
+                                    <option value="particular">Particular</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Veri*Factu:</label>
+                                <select id="filter_verifactu">
+                                    <option value="">Todos</option>
+                                    <option value="yes">Con Veri*Factu</option>
+                                    <option value="no">Sin Veri*Factu</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label>Estado:</label>
+                                <select id="filter_status">
+                                    <option value="">Todos</option>
+                                    <option value="active">Activas</option>
+                                    <option value="cancelled">Anuladas</option>
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <button class="btn-secondary" id="clearFilters">🔄 Limpiar</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="invoicesTable">
+                            <thead>
+                                <tr>
+                                    <th>Empresa</th>
+                                    <th>Nº Factura</th>
+                                    <th>Fecha</th>
+                                    <th>Cliente</th>
+                                    <th>Tipo</th>
+                                    <th>Total</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- ARTICLES TAB -->
+            <div id="articles-tab" class="tab-content">
+                <section class="card">
+                    <div class="section-header">
+                        <h2>Gestión de Artículos y Servicios</h2>
+                        <button type="button" class="btn-primary" id="toggleArticleForm">+ Nuevo Artículo</button>
+                    </div>
+
+                    <div id="articleFormContainer" class="hidden">
+                        <form id="articleForm">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="article_code">Código</label>
+                                    <input type="text" id="article_code" placeholder="ART-001">
+                                </div>
+                                <div class="form-group">
+                                    <label for="article_name">Nombre *</label>
+                                    <input type="text" id="article_name" required placeholder="Nombre del artículo">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="article_description">Descripción</label>
+                                    <input type="text" id="article_description" placeholder="Descripción detallada">
+                                </div>
+                                <div class="form-group">
+                                    <label for="article_price">Precio Unitario (€) *</label>
+                                    <input type="number" id="article_price" step="0.01" required placeholder="0.00">
+                                </div>
+                                <div class="form-group">
+                                    <label for="article_vat">IVA (%) *</label>
+                                    <select id="article_vat">
+                                        <option value="21">21%</option>
+                                        <option value="10">10%</option>
+                                        <option value="4">4%</option>
+                                        <option value="0">0%</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="article_category">Categoría</label>
+                                    <input type="text" id="article_category" placeholder="Ej: Fontanería, Electricidad">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="submit" class="btn-primary">Guardar Artículo</button>
+                                <button type="button" class="btn-secondary" id="cancelArticleForm">Cancelar</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <div class="search-box">
+                        <input type="text" id="articleSearch" placeholder="🔍 Buscar artículos...">
+                    </div>
+
+                    <div class="table-container">
+                        <table id="articlesTable">
+                            <thead>
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Nombre</th>
+                                    <th>Descripción</th>
+                                    <th>Precio</th>
+                                    <th>IVA</th>
+                                    <th>Categoría</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Generated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+            </div>
+
+            <!-- COMPANIES TAB -->
+            <div id="companies-tab" class="tab-content">
+                <section class="card">
+                    <h2>Gestión de Empresas</h2>
+                    <div class="company-controls">
+                        <div class="company-selector">
+                            <label for="active_company">Empresa Activa:</label>
+                            <select id="active_company">
+                                <option value="">Seleccionar empresa...</option>
+                            </select>
+                        </div>
+                        <button type="button" class="btn-secondary" id="toggleCompanyForm">+ Nueva Empresa</button>
+                    </div>
+
+                    <div id="companyFormContainer" class="hidden">
+                        <form id="companyForm">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="company_name">Nombre de Empresa *</label>
+                                    <input type="text" id="company_name" required placeholder="Mi Empresa S.L.">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_cif">CIF *</label>
+                                    <input type="text" id="company_cif" required placeholder="B12345678">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_address">Dirección</label>
+                                    <input type="text" id="company_address" placeholder="Calle Principal, 123">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_phone">Teléfono</label>
+                                    <input type="tel" id="company_phone" placeholder="971 123 456">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_email">Email</label>
+                                    <input type="email" id="company_email" placeholder="info@empresa.com">
+                                </div>
+                                <div class="form-group">
+                                    <label for="company_bank_iban">IBAN Bancario</label>
+                                    <input type="text" id="company_bank_iban"
+                                        placeholder="ES00 0000 0000 0000 0000 0000">
+                                </div>
+                            </div>
+                    </div>
+
+                    <div class="verifactu-section">
+                        <h3>⚡ Configuración Veri*Factu</h3>
+                        <p class="info-text">Sistema de integridad y trazabilidad según RD 1007/2023</p>
+
+                        <div class="form-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="verifactu_enabled">
+                                <span>Habilitar Veri*Factu (facturas con hash y código QR)</span>
+                            </label>
+                        </div>
+
+                        <div id="verifactu_details" class="hidden">
+                            <div class="form-group">
+                                <label for="verifactu_software_id">ID Software (opcional)</label>
+                                <input type="text" id="verifactu_software_id" placeholder="SYS-FACT-001">
+                            </div>
+                            <div class="alert-warning">
+                                <strong>⚠️ Importante:</strong> Una vez habilitado Veri*Factu, las facturas no podrán
+                                ser eliminadas, solo anuladas. Esto garantiza la integridad de la cadena de bloques.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Empresa</button>
+                        <button type="button" class="btn-secondary" id="cancelCompanyForm">Cancelar</button>
+                    </div>
+                    </form>
+            </div>
+            </section>
+    </div>
+    </main>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdfModal" class="modal hidden">
+        <div class="modal-content pdf-modal-content">
+            <div class="modal-header">
+                <h3 id="pdfModalTitle">Vista Previa - Factura</h3>
+                <button class="modal-close" id="closePdfModal">&times;</button>
+            </div>
+            <div class="modal-body pdf-modal-body">
+                <iframe id="pdfViewer" class="pdf-viewer"></iframe>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="closePdfModalBtn">Cerrar</button>
+                <button class="btn-primary" id="downloadFromModal">📄 Descargar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- USERS TAB (Admin only) -->
+    <div id="users-tab" class="tab-content">
+        <section class="card form-section">
+            <div class="section-header">
+                <h2>Gestión de Usuarios</h2>
+                <button class="btn-primary" id="toggleUserForm">+ Nuevo Usuario</button>
+            </div>
+
+            <div id="userFormContainer" class="hidden">
+                <form id="userForm">
+                    <div class="form-grid">
+                        <div class="form-group">
+                            <label for="user_username">Usuario *</label>
+                            <input type="text" id="user_username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="user_password">Contraseña *</label>
+                            <input type="password" id="user_password" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="user_full_name">Nombre Completo *</label>
+                            <input type="text" id="user_full_name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="user_email">Email</label>
+                            <input type="email" id="user_email">
+                        </div>
+                        <div class="form-group">
+                            <label for="user_role">Rol *</label>
+                            <select id="user_role" required>
+                                <option value="user">Usuario</option>
+                                <option value="admin">Administrador</option>
+                                <option value="viewer">Visor</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button type="submit" class="btn-primary">Guardar Usuario</button>
+                        <button type="button" class="btn-secondary" id="cancelUserForm">Cancelar</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>Usuarios del Sistema</h2>
+            <div class="table-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Usuario</th>
+                            <th>Nombre</th>
+                            <th>Email</th>
+                            <th>Rol</th>
+                            <th>Estado</th>
+                            <th>Último Acceso</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <!-- Generated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </div>
+
+    <!-- Article Selector Modal -->
+    <div id="articleModal" class="modal hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Seleccionar Artículo/Servicio</h3>
+                <button class="modal-close" id="closeArticleModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="modalArticleSearch" placeholder="🔍 Buscar artículo..." class="search-input">
+                <div id="articlesList" class="articles-list">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

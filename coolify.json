@@ -1,0 +1,32 @@
+{
+    "name": "facturas-nofre-plomer",
+    "description": "Sistema de gestión de facturas con autenticación",
+    "build": {
+        "type": "dockerfile",
+        "dockerfile": "Dockerfile"
+    },
+    "deploy": {
+        "port": 3000,
+        "healthcheck": {
+            "path": "/",
+            "interval": 30,
+            "timeout": 10,
+            "retries": 3
+        }
+    },
+    "environment": {
+        "NODE_ENV": "production",
+        "PORT": "3000",
+        "SESSION_SECRET": "REQUIRED",
+        "INIT_DEMO_DATA": "true"
+    },
+    "volumes": [
+        {
+            "source": "facturas-data",
+            "destination": "/app/data",
+            "required": true
+        }
+    ],
+    "domains": [],
+    "ssl": true
+}

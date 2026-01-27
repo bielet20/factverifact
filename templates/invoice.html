@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Factura {{invoice.invoice_number}}</title>
+    <style>
+        @page {
+            size: A4;
+            margin: 15mm 20mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 9pt;
+            line-height: 1.3;
+            color: #000;
+        }
+
+        .header {
+            display: table;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .header-left {
+            display: table-cell;
+            width: 50%;
+            vertical-align: top;
+        }
+
+        .header-right {
+            display: table-cell;
+            width: 50%;
+            text-align: right;
+            vertical-align: top;
+        }
+
+        .company-info {
+            font-size: 8pt;
+            line-height: 1.4;
+        }
+
+        .company-info strong {
+            font-size: 9pt;
+            font-weight: bold;
+        }
+
+        .invoice-title {
+            font-size: 22pt;
+            color: #0066cc;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+
+        .client-box {
+            border: 2px solid #000;
+            padding: 10px;
+            margin-bottom: 15px;
+            min-height: 80px;
+        }
+
+        .client-box .label {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 9pt;
+        }
+
+        .client-box p {
+            margin: 2px 0;
+            font-size: 8pt;
+        }
+
+        .invoice-meta {
+            display: table;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .invoice-meta>div {
+            display: table-cell;
+        }
+
+        .invoice-meta .left {
+            width: 70%;
+        }
+
+        .invoice-meta .right {
+            width: 30%;
+            text-align: right;
+        }
+
+        .meta-field {
+            display: inline-block;
+            margin-right: 15px;
+        }
+
+        .meta-field label {
+            font-weight: bold;
+            border: 1px solid #000;
+            padding: 3px 8px;
+            background-color: #f5f5f5;
+            font-size: 8pt;
+        }
+
+        .meta-field span {
+            border: 1px solid #000;
+            border-left: none;
+            padding: 3px 12px;
+            font-size: 8pt;
+        }
+
+        .page-number {
+            font-size: 8pt;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 15px;
+            font-size: 8pt;
+        }
+
+        table th {
+            background-color: #f5f5f5;
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: left;
+            font-weight: bold;
+            font-size: 8pt;
+        }
+
+        table td {
+            border: 1px solid #000;
+            padding: 5px;
+            font-size: 8pt;
+        }
+
+        table td.right {
+            text-align: right;
+        }
+
+        table td.center {
+            text-align: center;
+        }
+
+        .totals-section {
+            text-align: right;
+            margin-bottom: 25px;
+        }
+
+        .totals-row {
+            display: inline-block;
+            margin-left: 10px;
+        }
+
+        .totals-row label {
+            font-weight: bold;
+            border: 1px solid #000;
+            padding: 4px 10px;
+            background-color: #f5f5f5;
+            font-size: 8pt;
+            display: inline-block;
+        }
+
+        .totals-row span {
+            border: 1px solid #000;
+            border-left: none;
+            padding: 4px 15px;
+            font-size: 8pt;
+            display: inline-block;
+            min-width: 80px;
+            text-align: right;
+        }
+
+        .bank-details {
+            margin-top: 20px;
+            padding-top: 10px;
+            border-top: 1px solid #ccc;
+            font-size: 8pt;
+        }
+
+        .bank-details strong {
+            font-weight: bold;
+        }
+
+        .legal-text {
+            margin-top: 15px;
+            font-size: 6pt;
+            line-height: 1.2;
+            color: #555;
+            text-align: justify;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="header-left">
+            <div class="company-info">
+                <strong>{{company.company_name}}</strong><br>
+                {{#if company.cif}}{{company.cif}}<br>{{/if}}
+                {{#if company.address}}{{company.address}}<br>{{/if}}
+                {{#if company.phone}}Tlf. {{company.phone}}<br>{{/if}}
+                {{#if company.email}}{{company.email}}{{/if}}
+            </div>
+        </div>
+        <div class="header-right">
+            <div class="invoice-title">Factura</div>
+            {{#if invoice.qr_code}}
+            <div style="margin-top: 10px;">
+                <img src="{{invoice.qr_code}}" alt="QR Veri*Factu" style="width: 120px; height: 120px;">
+                <div style="font-size: 7pt; text-align: center; margin-top: 3px; color: #0066cc; font-weight: bold;">
+                    ✓ Veri*Factu
+                </div>
+            </div>
+            {{/if}}
+        </div>
+    </div>
+
+    <div class="client-box">
+        <div class="label">Cliente</div>
+        <p><strong>{{invoice.client_name}}</strong></p>
+        {{#if invoice.client_address}}<p>{{invoice.client_address}}</p>{{/if}}
+        {{#if invoice.client_cif}}<p>{{invoice.client_cif}}</p>{{/if}}
+        {{#if invoice.client_type}}<p>{{invoice.client_type}}</p>{{/if}}
+    </div>
+
+    <div class="invoice-meta">
+        <div class="left">
+            <div class="meta-field">
+                <label>Factura</label><span>{{invoice.invoice_number}}</span>
+            </div>
+            <div class="meta-field">
+                <label>Fecha</label><span>{{formatDate invoice.date}}</span>
+            </div>
+        </div>
+        <div class="right">
+            <div class="page-number">PÁG. 1</div>
+        </div>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th style="width: 8%;">Cantidad</th>
+                <th style="width: 47%;">Concepto</th>
+                <th style="width: 15%;">Precio</th>
+                <th style="width: 10%;">IVA %</th>
+                <th style="width: 20%;">Importe</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{#each invoice.items}}
+            <tr>
+                <td class="center">{{this.quantity}}</td>
+                <td>{{this.description}}</td>
+                <td class="right">{{formatCurrency this.unit_price}}</td>
+                <td class="center">{{this.vat_rate}}%</td>
+                <td class="right">{{formatCurrency this.line_total}}</td>
+            </tr>
+            {{/each}}
+        </tbody>
+    </table>
+
+    <div class="totals-section">
+        <div class="totals-row">
+            <label>Base Imponible</label><span>{{formatCurrency invoice.subtotal}}</span>
+        </div>
+        <div class="totals-row">
+            <label>I.V.A.</label><span>{{formatCurrency invoice.total_vat}}</span>
+        </div>
+        <div class="totals-row">
+            <label>Total Factura</label><span>{{formatCurrency invoice.total}}</span>
+        </div>
+    </div>
+
+    {{#if invoice.notes}}
+    <div style="margin-bottom: 15px; font-size: 8pt;">
+        <strong>Notas:</strong> {{invoice.notes}}
+    </div>
+    {{/if}}
+
+    {{#if invoice.is_cancelled}}
+    <div
+        style="margin-bottom: 15px; padding: 10px; background-color: #fee; border: 2px solid #c00; border-radius: 5px;">
+        <strong style="color: #c00; font-size: 10pt;">⚠️ FACTURA ANULADA</strong>
+    </div>
+    {{/if}}
+
+    {{#if company.verifactu_enabled}}
+    <div style="margin-bottom: 15px; font-size: 7pt; color: #666;">
+        <strong>Veri*Factu:</strong> Factura certificada según RD 1007/2023<br>
+        {{#if invoice.current_hash}}
+        Hash: {{invoice.current_hash}}<br>
+        {{/if}}
+        {{#if invoice.invoice_sequence}}
+        Secuencia: {{invoice.invoice_sequence}}
+        {{/if}}
+    </div>
+    {{/if}}
+
+    {{#if company.bank_iban}}
+    <div class="bank-details">
+        <strong>Datos Bancarios:</strong> IBAN: {{company.bank_iban}}
+    </div>
+    {{/if}}
+
+    <div class="legal-text">
+        Esta factura se emite de acuerdo con la normativa fiscal vigente. Todos los datos son confidenciales y están
+        protegidos según la Ley de Protección de Datos. El pago de esta factura implica la aceptación de las condiciones
+        establecidas.
+    </div>
+</body>
+
+</html>
