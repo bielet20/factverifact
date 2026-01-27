@@ -100,10 +100,10 @@ function renderBackupsTable(backups) {
             <td>${new Date(backup.created).toLocaleString('es-ES')}</td>
             <td>${formatFileSize(backup.size)}</td>
             <td>
-                <button class="btn-secondary" onclick="downloadBackup('${backup.name}')">
+                <button type="button" class="btn-secondary" onclick="downloadBackup('${backup.name}')">
                     ⬇️ Descargar
                 </button>
-                <button class="btn-danger" onclick="deleteBackup('${backup.name}')">
+                <button type="button" class="btn-danger" onclick="deleteBackup('${backup.name}')">
                     🗑️ Eliminar
                 </button>
             </td>
