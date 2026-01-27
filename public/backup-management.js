@@ -114,7 +114,7 @@ function renderBackupsTable(backups) {
 /**
  * Download a backup
  */
-function downloadBackup(backupName) {
+window.downloadBackup = function (backupName) {
     window.location.href = `/api/backups/${backupName}/download`;
 }
 
@@ -187,7 +187,7 @@ async function restoreBackup() {
 /**
  * Delete a backup
  */
-async function deleteBackup(backupName) {
+window.deleteBackup = async function (backupName) {
     if (!confirm(`¿Eliminar el backup "${backupName}"?`)) {
         return;
     }
