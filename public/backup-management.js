@@ -188,7 +188,12 @@ async function restoreBackup() {
  * Delete a backup
  */
 window.deleteBackup = async function (backupName) {
-    if (!confirm(`¿Eliminar el backup "${backupName}"?`)) {
+    const confirmed = await window.customConfirm(
+        `¿Eliminar el backup "${backupName}"?`,
+        '🗑️ Eliminar Backup'
+    );
+
+    if (!confirmed) {
         return;
     }
 
