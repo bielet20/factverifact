@@ -1354,6 +1354,52 @@ app.delete('/api/backups/:name', requireAuth, requireRole('admin'), async (req, 
     }
 });
 
+// Database upload endpoint (for migrating local DB to production)
+app.post('/api/admin/upload-database', upload.single('database'), async (req, res) => {
+    try {
+        // Verify secret key
+        const uploadSecret = process.env.UPLOAD_SECRET || 'change-this-secret-key';
+        if (req.body.secret !== uploadSecret) {
+            return res.status(403).json({ error: 'Invalid secret key' });
+        }
+
+        if (!req.file) {
+            return res.status(400).json({ error: 'No database file provided' });
+        }
+
+        const uploadedDbPath = req.file.path;
+        const targetDbPath = path.join(__dirname, 'facturas.db');
+        const backupDbPath = path.join(__dirname, 'facturas.db.backup.' + Date.now());
+
+        // Backup current database
+        if (fs.existsSync(targetDbPath)) {
+            fs.copyFileSync(targetDbPath, backupDbPath);
+            console.log('📦 Current database backed up to:', backupDbPath);
+        }
+
+        // Replace with uploaded database
+        fs.copyFileSync(uploadedDbPath, targetDbPath);
+        fs.unlinkSync(uploadedDbPath);
+
+        console.log('✅ Database replaced successfully');
+
+        res.json({
+            message: 'Database uploaded and replaced successfully',
+            backup: backupDbPath
+        });
+
+        // Restart server to reload database
+        console.log('🔄 Restarting server to apply new database...');
+        setTimeout(() => {
+            process.exit(0); // Coolify will auto-restart
+        }, 1000);
+
+    } catch (error) {
+        console.error('Error uploading database:', error);
+        res.status(500).json({ error: 'Error uploading database: ' + error.message });
+    }
+});
+
 // Start server
 app.listen(HTTP_PORT, async () => {
     console.log(`Server running on port ${HTTP_PORT}`);
