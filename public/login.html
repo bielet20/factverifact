@@ -74,6 +74,21 @@
             margin-bottom: 15px;
             display: none;
         }
+
+        .forgot-password {
+            text-align: center;
+            margin-top: 15px;
+        }
+
+        .forgot-password a {
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .forgot-password a:hover {
+            text-decoration: underline;
+        }
     </style>
 </head>
 
@@ -86,6 +101,9 @@
             <input type="password" id="password" placeholder="Contraseña" required>
             <button type="submit">Iniciar Sesión</button>
         </form>
+        <div class="forgot-password">
+            <a href="/forgot-password.html">¿Olvidaste tu contraseña?</a>
+        </div>
     </div>
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {

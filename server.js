@@ -1358,7 +1358,22 @@ app.delete('/api/backups/:name', requireAuth, requireRole('admin'), async (req, 
 app.listen(HTTP_PORT, async () => {
     console.log(`Server running on port ${HTTP_PORT}`);
 
-    // Ensure admin user exists (CRITICAL for production)
+    // Wait for database to be fully initialized
+    setTimeout(async () => {
+        await initializeUsers();
+
+        // Initialize demo data if enabled
+        if (process.env.INIT_DEMO_DATA === 'true') {
+            const { initializeDemoData } = require('./init-demo.js');
+            setTimeout(() => {
+                initializeDemoData();
+            }, 1000);
+        }
+    }, 1000);
+});
+
+// Initialize admin and root users
+async function initializeUsers() {
     try {
         const adminExists = await new Promise((resolve, reject) => {
             db.get('SELECT id FROM users WHERE username = ?', ['admin'], (err, row) => {
@@ -1446,13 +1461,6 @@ app.listen(HTTP_PORT, async () => {
     } catch (error) {
         console.error('❌ Error checking/creating root user:', error);
     }
+}
 
-    // Initialize demo data if enabled
-    if (process.env.INIT_DEMO_DATA === 'true') {
-        const { initializeDemoData } = require('./init-demo.js');
-        setTimeout(() => {
-            initializeDemoData();
-        }, 2000);
-    }
-});
 
