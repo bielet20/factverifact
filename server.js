@@ -1368,8 +1368,8 @@ app.post('/api/admin/upload-database', upload.single('database'), async (req, re
         }
 
         const uploadedDbPath = req.file.path;
-        const targetDbPath = path.join(__dirname, 'facturas.db');
-        const backupDbPath = path.join(__dirname, 'facturas.db.backup.' + Date.now());
+        const targetDbPath = path.join(__dirname, 'invoices.db');
+        const backupDbPath = path.join(__dirname, 'invoices.db.backup.' + Date.now());
 
         // Backup current database
         if (fs.existsSync(targetDbPath)) {

@@ -22,7 +22,7 @@ async function uploadDatabase() {
         process.exit(1);
     }
 
-    const dbPath = path.join(__dirname, 'facturas.db');
+    const dbPath = path.join(__dirname, 'invoices.db');
 
     if (!fs.existsSync(dbPath)) {
         console.error('❌ Error: Database file not found:', dbPath);
