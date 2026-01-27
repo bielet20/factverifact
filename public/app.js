@@ -47,29 +47,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const articlesList = document.getElementById('articlesList');
 
     // Check authentication
-    // Simple session check
-    async function checkSession() {
+    // Check authentication - try localStorage first, then session
+    async function checkAuth() {
+        // First, try to get user from localStorage
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+            try {
+                currentUser = JSON.parse(storedUser);
+                initializeUserUI();
+                return true;
+            } catch (e) {
+                console.error('Error parsing stored user:', e);
+                localStorage.removeItem('user');
+            }
+        }
+
+        // If no localStorage, try session
         try {
             const response = await fetch('/api/auth/session', { credentials: 'include' });
-            if (!response.ok) {
-                window.location.href = '/login.html';
-                return false;
+            if (response.ok) {
+                const data = await response.json();
+                currentUser = data.user;
+                // Save to localStorage for future page loads
+                localStorage.setItem('user', JSON.stringify(currentUser));
+                initializeUserUI();
+                return true;
             }
-            const data = await response.json();
-            currentUser = data.user;
-            initializeUserUI();
-            return true;
         } catch (error) {
-            window.location.href = '/login.html';
-            return false;
+            console.error('Session check failed:', error);
         }
+
+        // No valid auth found
+        return false;
     }
 
     // Initialize user UI
     function initializeUserUI() {
         const userInfo = document.getElementById('userInfo');
         const userName = document.getElementById('userName');
-        const usersTab = document.getElementById('usersTab');
 
         if (currentUser) {
             userName.textContent = `👤 ${currentUser.full_name} (${currentUser.role})`;
@@ -86,6 +101,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initialize
+    checkAuth(); // Check authentication on page load
     loadCompanies();
     loadArticles();
     loadInvoices();
