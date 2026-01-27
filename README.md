@@ -1,99 +1,98 @@
-# Gestión de Facturas - Nofre Plomer
+# 🧾 Sistema de Gestión de Facturas - Nofre Plomer
 
-Sistema completo de gestión de facturas con autenticación y control de usuarios.
+Sistema completo de gestión de facturas con integración Veri*Factu.
 
-## 🚀 Características
+## 🚀 Instalación Rápida con Docker
 
-- ✨ Gestión de empresas emisoras
-- ✨ Catálogo de artículos y servicios
-- ✨ Creación de facturas con líneas
-- ✨ Generación de PDF
-- ✨ Filtros avanzados
-- ✨ Sistema de usuarios con roles (Admin/User/Viewer)
-- ✨ Autenticación segura
-- ✨ Preparado para Veri*Factu
+### Requisitos
+- Docker Desktop instalado
 
-## 📦 Despliegue
-
-### Docker Compose (Local)
+### Pasos
 
 ```bash
-# Inicio rápido
-./start.sh
+# 1. Clonar el repositorio
+git clone https://github.com/bielet20/factverifact.git
+cd factverifact
 
-# O manualmente
+# 2. Iniciar la aplicación
 docker-compose up -d
+
+# 3. Acceder
+# Abre tu navegador en: http://localhost:3000
 ```
 
-### Coolify (Producción)
+### Credenciales por Defecto
+- **Usuario:** `admin`
+- **Contraseña:** `admin123`
 
-Ver guía completa en [COOLIFY-DEPLOYMENT.md](./COOLIFY-DEPLOYMENT.md)
+⚠️ **Cambia la contraseña después del primer login**
 
-**Resumen rápido:**
-1. Sube el código a Git
-2. Crea nueva aplicación en Coolify
-3. Configura variables de entorno
-4. Añade volumen persistente en `/app/data`
-5. Despliega
+---
 
-## 🔑 Credenciales Iniciales
+## 📖 Documentación Completa
 
-```
-Usuario: admin
-Contraseña: admin123
-```
+Ver [Guía de Instalación Docker](./DOCKER-INSTALL.md) para instrucciones detalladas.
 
-> ⚠️ Cambiar inmediatamente en producción
+---
 
-## 📋 Variables de Entorno
+## ✨ Características
+
+- ✅ Gestión de empresas y clientes
+- ✅ Creación y edición de facturas
+- ✅ Gestión de artículos/productos
+- ✅ Integración Veri*Factu
+- ✅ Generación de PDFs
+- ✅ Sistema de usuarios y permisos
+- ✅ Backups automáticos
+- ✅ Recuperación de contraseña por email
+
+---
+
+## 🛠️ Comandos Útiles
 
 ```bash
-NODE_ENV=production
-PORT=3000
-SESSION_SECRET=<genera-aleatorio-seguro>
-INIT_DEMO_DATA=true  # false en producción
+# Iniciar
+docker-compose up -d
+
+# Detener
+docker-compose down
+
+# Ver logs
+docker-compose logs -f
+
+# Actualizar
+git pull && docker-compose up -d --build
 ```
 
-## 🗂️ Estructura
+---
 
-```
-├── Dockerfile              # Imagen Docker
-├── docker-compose.yml      # Orquestación
-├── server.js              # Servidor Express
-├── database.js            # SQLite
-├── auth.js                # Autenticación
-├── init-demo.js           # Datos demo
-├── public/                # Frontend
-└── data/                  # Base de datos (volumen)
-```
+## 🌐 Acceso desde Red Local
 
-## 📚 Documentación
+1. Encuentra tu IP: `ipconfig` (Windows) o `ifconfig` (Mac/Linux)
+2. Accede desde otro equipo: `http://TU-IP:3000`
 
-- [DOCKER-README.md](./DOCKER-README.md) - Guía Docker completa
-- [COOLIFY-DEPLOYMENT.md](./COOLIFY-DEPLOYMENT.md) - Despliegue en Coolify
+---
 
-## 🛡️ Seguridad
-
-- Contraseñas hasheadas con bcrypt
-- Sesiones seguras con express-session
-- Cookies HTTP-only y SameSite
-- Control de acceso por roles
-- Prevención de inyección SQL
-
-## 📊 Datos Demo
-
-Incluye empresa de fontanería con:
-- Nofre Plomer S.L.
-- 8 artículos/servicios
-- Factura de ejemplo
-
-## 🔧 Desarrollo
+## 💾 Backup
 
 ```bash
-npm install
-npm start
+# Backup manual
+cp invoices.db invoices.db.backup
+
+# Restaurar
+cp invoices.db.backup invoices.db
+docker-compose restart
 ```
 
-## 📝 Licencia
+---
 
-MIT
+## 📞 Soporte
+
+- Ver logs: `docker-compose logs`
+- Issues: https://github.com/bielet20/factverifact/issues
+
+---
+
+## 📄 Licencia
+
+Propietario - Nofre Plomer
