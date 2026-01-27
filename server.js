@@ -325,9 +325,13 @@ app.delete('/api/users/:id', requireAuth, requireRole('admin'), (req, res) => {
 // COMPANY MANAGEMENT ENDPOINTS
 // ============================================
 
-// Root endpoint
+// Root endpoint - redirect to login if not authenticated
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    if (!req.session || !req.session.user) {
+        res.redirect('/login.html');
+    } else {
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    }
 });
 
 // Login page redirect (handle /login without .html)
@@ -338,7 +342,7 @@ app.get('/login', (req, res) => {
 // Company Management Endpoints
 
 // Create a new company
-app.post('/api/companies', (req, res) => {
+app.post('/api/companies', requireAuth, (req, res) => {
     var errors = []
     if (!req.body.company_name) {
         errors.push("Company name is required");
@@ -376,7 +380,7 @@ app.post('/api/companies', (req, res) => {
 });
 
 // List all companies
-app.get('/api/companies', (req, res) => {
+app.get('/api/companies', requireAuth, (req, res) => {
     var sql = "SELECT * FROM companies ORDER BY company_name"
     db.all(sql, [], (err, rows) => {
         if (err) {
@@ -391,7 +395,7 @@ app.get('/api/companies', (req, res) => {
 });
 
 // Update Veri*Factu settings for a company
-app.put('/api/companies/:id/verifactu', (req, res) => {
+app.put('/api/companies/:id/verifactu', requireAuth, (req, res) => {
     const companyId = req.params.id;
     const verifactuEnabled = req.body.verifactu_enabled ? 1 : 0;
     const softwareId = req.body.verifactu_software_id || null;
@@ -413,7 +417,7 @@ app.put('/api/companies/:id/verifactu', (req, res) => {
 });
 
 // Delete a company
-app.delete('/api/companies/:id', (req, res) => {
+app.delete('/api/companies/:id', requireAuth, (req, res) => {
     db.run('DELETE FROM companies WHERE id = ?', req.params.id, function (err) {
         if (err) {
             res.status(400).json({ "error": err.message });
@@ -505,7 +509,7 @@ app.delete('/api/companies/:id/logo', requireAuth, (req, res) => {
 // Articles Management Endpoints
 
 // Create a new article
-app.post('/api/articles', (req, res) => {
+app.post('/api/articles', requireAuth, (req, res) => {
     var errors = []
     if (!req.body.name) {
         errors.push("Article name is required");
@@ -542,7 +546,7 @@ app.post('/api/articles', (req, res) => {
 });
 
 // List all articles
-app.get('/api/articles', (req, res) => {
+app.get('/api/articles', requireAuth, (req, res) => {
     var sql = "SELECT * FROM articles WHERE is_active = 1 ORDER BY name"
     var params = []
 
@@ -565,7 +569,7 @@ app.get('/api/articles', (req, res) => {
 });
 
 // Get a single article
-app.get('/api/articles/:id', (req, res) => {
+app.get('/api/articles/:id', requireAuth, (req, res) => {
     var sql = "SELECT * FROM articles WHERE id = ?"
     db.get(sql, [req.params.id], (err, row) => {
         if (err) {
@@ -580,7 +584,7 @@ app.get('/api/articles/:id', (req, res) => {
 });
 
 // Update an article
-app.put('/api/articles/:id', (req, res) => {
+app.put('/api/articles/:id', requireAuth, (req, res) => {
     var data = {
         code: req.body.code,
         name: req.body.name,
@@ -616,7 +620,7 @@ app.put('/api/articles/:id', (req, res) => {
 });
 
 // Delete an article (soft delete)
-app.delete('/api/articles/:id', (req, res) => {
+app.delete('/api/articles/:id', requireAuth, (req, res) => {
     db.run('UPDATE articles SET is_active = 0 WHERE id = ?', req.params.id, function (err) {
         if (err) {
             res.status(400).json({ "error": err.message });
@@ -629,7 +633,7 @@ app.delete('/api/articles/:id', (req, res) => {
 // Invoice Management Endpoints
 
 // Create a new invoice with multiple line items and Veri*Factu support
-app.post('/api/invoices', async (req, res) => {
+app.post('/api/invoices', requireAuth, async (req, res) => {
     var errors = []
     if (!req.body.invoice_number) {
         errors.push("No invoice number specified");
@@ -777,7 +781,7 @@ app.post('/api/invoices', async (req, res) => {
 });
 
 // List all invoices with optional company filter
-app.get('/api/invoices', (req, res) => {
+app.get('/api/invoices', requireAuth, (req, res) => {
     let sql = `SELECT invoices.*, companies.company_name 
                FROM invoices 
                LEFT JOIN companies ON invoices.company_id = companies.id
@@ -847,7 +851,7 @@ app.get('/api/invoices', (req, res) => {
 });
 
 // Get a single invoice with its items
-app.get('/api/invoices/:id', (req, res) => {
+app.get('/api/invoices/:id', requireAuth, (req, res) => {
     const invoiceSql = `SELECT invoices.*, companies.* 
                         FROM invoices 
                         LEFT JOIN companies ON invoices.company_id = companies.id 
