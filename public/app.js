@@ -1,9 +1,13 @@
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // Global variable for current user
     window.currentUser = null;
-    // Session check TEMPORARILY DISABLED - working on fixing redirect loop
-    // const isLoggedIn = await checkSession();
-    // if (!isLoggedIn) return;
+
+    // CRITICAL: Check authentication before loading app
+    const isLoggedIn = await checkAuth();
+    if (!isLoggedIn) {
+        window.location.href = '/login.html';
+        return; // Stop execution
+    }
 
     // State
     let invoiceItems = [];
