@@ -1355,7 +1355,7 @@ app.delete('/api/backups/:name', requireAuth, requireRole('admin'), async (req, 
 });
 
 // Database upload endpoint (for migrating local DB to production)
-app.post('/api/admin/upload-database', upload.single('database'), async (req, res) => {
+app.post('/api/admin/upload-database', dbUpload.single('database'), async (req, res) => {
     try {
         // Verify secret key
         const uploadSecret = process.env.UPLOAD_SECRET || 'change-this-secret-key';
