@@ -75,9 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
             userName.textContent = `👤 ${currentUser.full_name} (${currentUser.role})`;
             userInfo.style.display = 'flex';
 
-            // Show Users tab only for admins
+            // Show admin-only tabs
             if (currentUser.role === 'admin') {
-                usersTab.style.display = 'block';
+                const usersTab = document.getElementById('usersTab');
+                const backupsTab = document.getElementById('backupsTab');
+                if (usersTab) usersTab.style.display = 'block';
+                if (backupsTab) backupsTab.style.display = 'block';
             }
         }
     }

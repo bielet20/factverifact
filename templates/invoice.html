@@ -204,6 +204,11 @@
 <body>
     <div class="header">
         <div class="header-left">
+            {{#if company.logoBase64}}
+            <div style="margin-bottom: 10px;">
+                <img src="{{company.logoBase64}}" alt="Logo" style="max-width: 150px; max-height: 80px;">
+            </div>
+            {{/if}}
             <div class="company-info">
                 <strong>{{company.company_name}}</strong><br>
                 {{#if company.cif}}{{company.cif}}<br>{{/if}}

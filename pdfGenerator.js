@@ -29,10 +29,26 @@ async function generateInvoicePDF(invoiceData, companyData) {
         // Compile the template
         const template = handlebars.compile(templateContent);
 
+        // Process company logo if exists
+        let companyLogo = null;
+        if (companyData.logo) {
+            try {
+                const logoPath = path.join(__dirname, 'public', companyData.logo);
+                const logoBuffer = await fs.readFile(logoPath);
+                const logoExt = path.extname(companyData.logo).substring(1);
+                companyLogo = `data:image/${logoExt};base64,${logoBuffer.toString('base64')}`;
+            } catch (err) {
+                console.warn('Could not load company logo:', err.message);
+            }
+        }
+
         // Prepare data for template
         const data = {
             invoice: invoiceData,
-            company: companyData
+            company: {
+                ...companyData,
+                logoBase64: companyLogo
+            }
         };
 
         // Generate HTML

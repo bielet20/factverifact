@@ -14,6 +14,13 @@ yarn-error.log*
 *.db-journal
 data/
 
+# Uploads (logos, etc)
+public/uploads/
+
+# Backups
+backups/
+*.zip
+
 # Logs
 logs/
 *.log
