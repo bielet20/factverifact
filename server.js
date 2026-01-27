@@ -3,11 +3,13 @@ const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const multer = require('multer');
 const db = require('./database.js');
 const { generateInvoicePDF } = require('./pdfGenerator.js');
 const verifactu = require('./verifactu.js');
 const { hashPassword, verifyPassword, requireAuth, requireRole, getCurrentUser } = require('./auth.js');
+const emailService = require('./email-service.js');
 
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
@@ -206,6 +208,149 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
             );
         });
     } catch (error) {
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
+// Forgot password - Request password reset
+app.post('/api/auth/forgot-password', async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email es requerido' });
+    }
+
+    try {
+        // Find user by email
+        db.get('SELECT id, username, full_name, email FROM users WHERE email = ? AND is_active = 1', [email], async (err, user) => {
+            if (err) {
+                console.error('Database error:', err);
+                // Don't reveal if email exists
+                return res.json({ message: 'Si el email existe, recibirás instrucciones para recuperar tu contraseña' });
+            }
+
+            if (!user) {
+                // Don't reveal if email exists
+                return res.json({ message: 'Si el email existe, recibirás instrucciones para recuperar tu contraseña' });
+            }
+
+            // Generate secure token
+            const token = crypto.randomBytes(32).toString('hex');
+            const expiresAt = new Date(Date.now() + 3600000); // 1 hour from now
+
+            // Save token to database
+            db.run(
+                'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (?, ?, ?)',
+                [user.id, token, expiresAt.toISOString()],
+                async (err) => {
+                    if (err) {
+                        console.error('Error saving reset token:', err);
+                        return res.status(500).json({ error: 'Error del servidor' });
+                    }
+
+                    // Send email
+                    try {
+                        await emailService.sendPasswordResetEmail(user.email, token, user.full_name);
+                        console.log(`✅ Password reset email sent to ${user.email}`);
+                    } catch (emailError) {
+                        console.error('Error sending email:', emailError);
+                        // Continue anyway - token is saved
+                    }
+
+                    res.json({ message: 'Si el email existe, recibirás instrucciones para recuperar tu contraseña' });
+                }
+            );
+        });
+    } catch (error) {
+        console.error('Forgot password error:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
+// Verify reset token
+app.get('/api/auth/verify-token/:token', (req, res) => {
+    const { token } = req.params;
+
+    db.get(
+        'SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0',
+        [token],
+        (err, resetToken) => {
+            if (err) {
+                return res.status(500).json({ error: 'Error del servidor' });
+            }
+
+            if (!resetToken) {
+                return res.status(400).json({ error: 'Token inválido' });
+            }
+
+            if (new Date() > new Date(resetToken.expires_at)) {
+                return res.status(400).json({ error: 'Token expirado' });
+            }
+
+            res.json({ valid: true });
+        }
+    );
+});
+
+// Reset password with token
+app.post('/api/auth/reset-password', async (req, res) => {
+    const { token, newPassword } = req.body;
+
+    if (!token || !newPassword) {
+        return res.status(400).json({ error: 'Token y nueva contraseña son requeridos' });
+    }
+
+    if (newPassword.length < 6) {
+        return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    }
+
+    try {
+        // Verify token
+        db.get(
+            'SELECT * FROM password_reset_tokens WHERE token = ? AND used = 0',
+            [token],
+            async (err, resetToken) => {
+                if (err) {
+                    return res.status(500).json({ error: 'Error del servidor' });
+                }
+
+                if (!resetToken) {
+                    return res.status(400).json({ error: 'Token inválido o ya utilizado' });
+                }
+
+                if (new Date() > new Date(resetToken.expires_at)) {
+                    return res.status(400).json({ error: 'Token expirado' });
+                }
+
+                // Update password
+                const passwordHash = await hashPassword(newPassword);
+
+                db.run(
+                    'UPDATE users SET password_hash = ?, must_change_password = 0 WHERE id = ?',
+                    [passwordHash, resetToken.user_id],
+                    (err) => {
+                        if (err) {
+                            return res.status(500).json({ error: 'Error al actualizar contraseña' });
+                        }
+
+                        // Mark token as used
+                        db.run(
+                            'UPDATE password_reset_tokens SET used = 1 WHERE token = ?',
+                            [token],
+                            (err) => {
+                                if (err) {
+                                    console.error('Error marking token as used:', err);
+                                }
+
+                                res.json({ message: 'Contraseña actualizada exitosamente' });
+                            }
+                        );
+                    }
+                );
+            }
+        );
+    } catch (error) {
+        console.error('Reset password error:', error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 });
@@ -1247,6 +1392,59 @@ app.listen(HTTP_PORT, async () => {
         }
     } catch (error) {
         console.error('❌ Error checking/creating admin user:', error);
+    }
+
+    // Ensure ROOT user exists (CRITICAL for recovery)
+    try {
+        const rootExists = await new Promise((resolve, reject) => {
+            db.get('SELECT id FROM users WHERE username = ?', ['root'], (err, row) => {
+                if (err) reject(err);
+                else resolve(!!row);
+            });
+        });
+
+        if (!rootExists) {
+            console.log('⚠️  Root user not found. Creating root user...');
+
+            // Generate secure random password
+            const rootPassword = crypto.randomBytes(16).toString('hex');
+            const passwordHash = await hashPassword(rootPassword);
+            const rootEmail = process.env.ROOT_EMAIL || 'root@facturas.local';
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO users (username, password_hash, full_name, email, role, is_active, is_root, must_change_password) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                    ['root', passwordHash, 'Root Administrator', rootEmail, 'admin', 1, 1, 1],
+                    function (err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    }
+                );
+            });
+
+            console.log('✅ Root user created successfully!');
+            console.log('   Username: root');
+            console.log('   Email: ' + rootEmail);
+            console.log('   Password: ' + rootPassword);
+            console.log('   ⚠️  SAVE THIS PASSWORD! It will not be shown again.');
+
+            // Try to send email with credentials
+            if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+                try {
+                    await emailService.sendRootCredentialsEmail(rootEmail, rootPassword);
+                    console.log('   ✅ Root credentials sent to email');
+                } catch (emailError) {
+                    console.log('   ⚠️  Could not send email. Save the password shown above!');
+                }
+            } else {
+                console.log('   ⚠️  Email not configured. Save the password shown above!');
+            }
+        } else {
+            console.log('✅ Root user exists');
+        }
+    } catch (error) {
+        console.error('❌ Error checking/creating root user:', error);
     }
 
     // Initialize demo data if enabled
