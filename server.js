@@ -96,6 +96,14 @@ const upload = multer({
             cb(new Error('Solo se permiten imágenes (JPEG, PNG, GIF, WebP)'));
         }
     }
+})
+
+    ;
+
+// Separate multer for database uploads
+const dbUpload = multer({
+    dest: 'uploads/temp/',
+    limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
 
