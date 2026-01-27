@@ -1206,8 +1206,44 @@ app.delete('/api/backups/:name', requireAuth, requireRole('admin'), async (req, 
 });
 
 // Start server
-app.listen(HTTP_PORT, () => {
+app.listen(HTTP_PORT, async () => {
     console.log(`Server running on port ${HTTP_PORT}`);
+
+    // Ensure admin user exists (CRITICAL for production)
+    try {
+        const adminExists = await new Promise((resolve, reject) => {
+            db.get('SELECT id FROM users WHERE username = ?', ['admin'], (err, row) => {
+                if (err) reject(err);
+                else resolve(!!row);
+            });
+        });
+
+        if (!adminExists) {
+            console.log('⚠️  Admin user not found. Creating default admin user...');
+            const passwordHash = await hashPassword('admin123');
+
+            await new Promise((resolve, reject) => {
+                db.run(
+                    `INSERT INTO users (username, password_hash, full_name, email, role, is_active, must_change_password) 
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    ['admin', passwordHash, 'Administrador', 'admin@example.com', 'admin', 1, 1],
+                    function (err) {
+                        if (err) reject(err);
+                        else resolve(this.lastID);
+                    }
+                );
+            });
+
+            console.log('✅ Admin user created successfully!');
+            console.log('   Username: admin');
+            console.log('   Password: admin123');
+            console.log('   ⚠️  CHANGE PASSWORD AFTER FIRST LOGIN!');
+        } else {
+            console.log('✅ Admin user exists');
+        }
+    } catch (error) {
+        console.error('❌ Error checking/creating admin user:', error);
+    }
 
     // Initialize demo data if enabled
     if (process.env.INIT_DEMO_DATA === 'true') {
@@ -1217,3 +1253,4 @@ app.listen(HTTP_PORT, () => {
         }, 2000);
     }
 });
+
