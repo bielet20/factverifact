@@ -103,6 +103,11 @@
                 });
 
                 if (response.ok) {
+                    const data = await response.json();
+                    // Save user data to localStorage
+                    if (data.user) {
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
                     window.location.href = '/';
                 } else {
                     const data = await response.json();
