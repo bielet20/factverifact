@@ -139,6 +139,7 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
             email TEXT,
             role TEXT NOT NULL CHECK(role IN ('admin', 'user', 'viewer')) DEFAULT 'user',
             is_active INTEGER DEFAULT 1,
+            is_root INTEGER DEFAULT 0,
             must_change_password INTEGER DEFAULT 0,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             last_login DATETIME

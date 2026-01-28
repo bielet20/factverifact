@@ -155,6 +155,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     companyForm.addEventListener('submit', async (e) => {
         e.preventDefault();
 
+        const editId = document.getElementById('company_id_edit').value;
+        const url = editId ? `/api/companies/${editId}` : '/api/companies';
+        const method = editId ? 'PUT' : 'POST';
+
         const formData = {
             company_name: document.getElementById('company_name').value,
             cif: document.getElementById('company_cif').value,
@@ -167,18 +171,32 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
-            const response = await fetch('/api/companies', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
                 credentials: 'include'
             });
 
             if (response.ok) {
+                const result = await response.json();
+                const companyId = editId || result.id;
+
+                // Handle logo upload if a file was selected
+                if (window.logoFileToUpload) {
+                    await uploadCompanyLogo(companyId, window.logoFileToUpload);
+                }
+
                 companyForm.reset();
+                document.getElementById('company_id_edit').value = '';
                 companyFormContainer.classList.add('hidden');
                 loadCompanies();
                 showNotification('✅ Empresa guardada correctamente', 'success');
+
+                // Reset logo preview
+                if (typeof setCompanyLogo === 'function') {
+                    setCompanyLogo(null, null);
+                }
             } else {
                 const errorData = await response.json();
                 showNotification('❌ Error: ' + (errorData.error || 'Error desconocido'), 'error');
@@ -593,11 +611,93 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (result.message === 'success') {
                 companies = result.data;
                 populateCompanySelects(result.data);
+                renderCompaniesTable(result.data);
             }
         } catch (error) {
             console.error('Error loading companies:', error);
         }
     }
+
+    function renderCompaniesTable(companiesList) {
+        const tbody = document.querySelector('#companiesTable tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        companiesList.forEach(company => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><strong>${company.company_name}</strong></td>
+                <td>${company.cif}</td>
+                <td>
+                    ${company.phone || ''}<br>
+                    <small>${company.email || ''}</small>
+                </td>
+                <td>${company.verifactu_enabled ? '✅ Habilitado' : '❌ Desactivado'}</td>
+                <td>
+                    <div class="btn-actions">
+                        <button class="btn-preview" onclick="editCompany(${company.id})">✏️ Editar</button>
+                        <button class="btn-danger" onclick="deleteCompany(${company.id})">🗑️</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(row);
+        });
+    }
+
+    window.editCompany = function (id) {
+        const company = companies.find(c => c.id === id);
+        if (!company) return;
+
+        document.getElementById('company_id_edit').value = company.id;
+        document.getElementById('company_name').value = company.company_name;
+        document.getElementById('company_cif').value = company.cif;
+        document.getElementById('company_address').value = company.address || '';
+        document.getElementById('company_phone').value = company.phone || '';
+        document.getElementById('company_email').value = company.email || '';
+        document.getElementById('company_bank_iban').value = company.bank_iban || '';
+
+        const verifactuEnabled = company.verifactu_enabled === 1;
+        const verifactuCheckbox = document.getElementById('verifactu_enabled');
+        if (verifactuCheckbox) {
+            verifactuCheckbox.checked = verifactuEnabled;
+            verifactuCheckbox.dispatchEvent(new Event('change'));
+        }
+
+        document.getElementById('verifactu_software_id').value = company.verifactu_software_id || '';
+
+        // Handle logo
+        if (typeof setCompanyLogo === 'function') {
+            setCompanyLogo(company.id, company.logo);
+        }
+
+        companyFormContainer.classList.remove('hidden');
+        companyFormContainer.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    window.deleteCompany = async function (id) {
+        if (!confirm('¿Estás seguro de que quieres eliminar esta empresa? Se eliminarán todos sus datos.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/api/companies/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                loadCompanies();
+                showNotification('✅ Empresa eliminada correctamente', 'success');
+            } else {
+                const errorData = await response.json();
+                showNotification('❌ Error: ' + (errorData.error || 'Error al eliminar'), 'error');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            showNotification('❌ Error de conexión', 'error');
+        }
+    };
 
     function populateCompanySelects(companies) {
         activeCompanySelect.innerHTML = '<option value="">Seleccionar empresa...</option>';
@@ -1096,4 +1196,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
+    // Logout
+    window.logout = async function () {
+        try {
+            const response = await fetch('/api/auth/logout', {
+                method: 'POST',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                // Clear localStorage
+                localStorage.removeItem('user');
+                window.currentUser = null;
+                // Redirect to login
+                window.location.href = '/login.html';
+            } else {
+                showNotification('❌ Error al cerrar sesión', 'error');
+            }
+        } catch (error) {
+            console.error('Logout error:', error);
+            showNotification('❌ Error de conexión al cerrar sesión', 'error');
+        }
+    };
 });

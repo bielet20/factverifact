@@ -644,6 +644,58 @@ app.get('/api/companies', requireAuth, (req, res) => {
     });
 });
 
+// Update a company
+app.put('/api/companies/:id', requireAuth, (req, res) => {
+    const companyId = req.params.id;
+    const {
+        company_name,
+        cif,
+        address,
+        phone,
+        email,
+        bank_iban,
+        verifactu_enabled,
+        verifactu_software_id
+    } = req.body;
+
+    if (!company_name || !cif) {
+        return res.status(400).json({ error: 'El nombre y el CIF son requeridos' });
+    }
+
+    const sql = `UPDATE companies SET 
+                company_name = ?, 
+                cif = ?, 
+                address = ?, 
+                phone = ?, 
+                email = ?, 
+                bank_iban = ?, 
+                verifactu_enabled = ?, 
+                verifactu_software_id = ? 
+                WHERE id = ?`;
+
+    const params = [
+        company_name,
+        cif,
+        address || '',
+        phone || '',
+        email || '',
+        bank_iban || '',
+        verifactu_enabled || 0,
+        verifactu_software_id || null,
+        companyId
+    ];
+
+    db.run(sql, params, function (err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        res.json({
+            "message": "success",
+            "changes": this.changes
+        });
+    });
+});
+
 // Update Veri*Factu settings for a company
 app.put('/api/companies/:id/verifactu', requireAuth, (req, res) => {
     const companyId = req.params.id;
