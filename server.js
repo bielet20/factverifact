@@ -111,6 +111,19 @@ const dbUpload = multer({
     limits: { fileSize: 100 * 1024 * 1024 } // 100MB limit
 });
 
+// Dedicated multer for backup restoration (Zips)
+const backupUpload = multer({
+    dest: 'backups/temp/',
+    limits: { fileSize: 100 * 1024 * 1024 }, // 100MB limit
+    fileFilter: (req, file, cb) => {
+        if (file.originalname.toLowerCase().endsWith('.zip')) {
+            cb(null, true);
+        } else {
+            cb(new Error('Solo se permiten archivos ZIP para restauración'));
+        }
+    }
+});
+
 
 // ============================================
 // AUTHENTICATION ENDPOINTS
@@ -1361,27 +1374,29 @@ app.get('/api/backups/:name/download', requireAuth, requireRole('admin'), (req, 
 });
 
 // Restore backup
-app.post('/api/backups/restore', requireAuth, requireRole('admin'), upload.single('backup'), async (req, res) => {
+app.post('/api/backups/restore', requireAuth, requireRole('admin'), backupUpload.single('backup'), async (req, res) => {
     try {
         if (!req.file) {
             return res.status(400).json({ error: 'No se ha proporcionado archivo de backup' });
         }
 
-        // Validate file extension
-        if (!req.file.originalname.endsWith('.zip')) {
-            fs.unlinkSync(req.file.path);
-            return res.status(400).json({ error: 'El archivo debe ser un ZIP' });
-        }
-
         const result = await backupManager.restoreBackup(req.file.path);
 
         // Delete uploaded file
-        fs.unlinkSync(req.file.path);
+        if (fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
 
         res.json({
-            message: 'Backup restaurado exitosamente',
+            message: 'Backup restaurado exitosamente. El sistema se reiniciará en un momento.',
             safetyBackup: result.safetyBackup
         });
+
+        // RESTART SERVER to reload the database
+        console.log('🔄 DEPURACIÓN: Reiniciando servidor tras restauración de backup...');
+        setTimeout(() => {
+            process.exit(0); // Coolify/Docker will auto-restart
+        }, 2000);
     } catch (error) {
         console.error('Error restoring backup:', error);
 

@@ -158,7 +158,15 @@ async function restoreBackup() {
             credentials: 'include'
         });
 
-        const result = await response.json();
+        const contentType = response.headers.get('content-type');
+        let result;
+        if (contentType && contentType.includes('application/json')) {
+            result = await response.json();
+        } else {
+            const textError = await response.text();
+            console.error('Non-JSON error from server:', textError);
+            throw new Error('El servidor devolvió un error inesperado (consulte la consola)');
+        }
 
         if (response.ok) {
             alert(
