@@ -457,9 +457,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Invoice Form Submission
-    invoiceForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+    // Invoice Form Handling
+    let currentEditingInvoiceId = null;
 
+    document.getElementById('saveDraftBtn').addEventListener('click', () => submitInvoice('draft'));
+    document.getElementById('finalizeInvoiceBtn').addEventListener('click', (e) => {
+        e.preventDefault();
+        if (confirm('¿Estás seguro de finalizar esta factura? No podrás modificarla después.')) {
+            submitInvoice('final');
+        }
+    });
+
+    document.getElementById('clearFormBtn').addEventListener('click', clearInvoiceForm);
+
+    const cancelEditBtn = document.getElementById('cancelEditBtn');
+    if (cancelEditBtn) {
+        cancelEditBtn.addEventListener('click', clearInvoiceForm);
+    }
+
+    async function submitInvoice(status) {
         if (invoiceItems.length === 0) {
             showNotification('❌ Debes añadir al menos una línea a la factura', 'error');
             return;
@@ -480,28 +496,61 @@ document.addEventListener('DOMContentLoaded', async () => {
             subtotal: totals.subtotal,
             total_vat: totals.totalVat,
             total: totals.total,
-            items: invoiceItems
+            items: invoiceItems,
+            status: status
         };
 
+        // Determine URL and Method
+        let url = '/api/invoices';
+        let method = 'POST';
+
+        if (currentEditingInvoiceId) {
+            // Update existing draft
+            url = `/api/invoices/${currentEditingInvoiceId}`;
+            method = 'PUT';
+
+            // If we are finalizing an existing draft, we first update it, then call finalize endpoint?
+            // Or we treat "Finalize" on update as a specific flow.
+            // Simplified workflow: PUT to update draft. If status is 'final', we use the finalize endpoint.
+            if (status === 'final') {
+                // First save changes as draft
+                try {
+                    const saveResponse = await fetch(url, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ ...formData, status: 'draft' }), // Force draft save first
+                        credentials: 'include'
+                    });
+
+                    if (!saveResponse.ok) throw new Error('Error al guardar cambios antes de finalizar');
+
+                    // Then Finalize
+                    url = `/api/invoices/${currentEditingInvoiceId}/finalize`;
+                    method = 'POST';
+                    // Finalize endpoint doesn't need body, relies on saved state
+                    formData = {};
+                } catch (err) {
+                    showNotification('❌ ' + err.message, 'error');
+                    return;
+                }
+            }
+        }
+
         try {
-            const response = await fetch('/api/invoices', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
                 credentials: 'include'
             });
 
             if (response.ok) {
-                showNotification('✅ Factura guardada correctamente', 'success');
-                invoiceForm.reset();
-                invoiceItems = [];
-                invoiceItemsBody.innerHTML = '';
-                addInvoiceLine();
-                updateTotals();
-                setTodayDate();
+                const action = status === 'final' ? 'finalizada' : 'guardada';
+                showNotification(`✅ Factura ${action} correctamente`, 'success');
+                clearInvoiceForm();
                 loadInvoices();
-                // Trigger change to reload next invoice number
-                invoiceCompanySelect.dispatchEvent(new Event('change'));
+                // Update companies to reflect new sequence if finalized
+                if (status === 'final') loadCompanies();
             } else {
                 const errorData = await response.json();
                 showNotification('❌ Error: ' + (errorData.error || 'Error desconocido'), 'error');
@@ -510,7 +559,107 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error:', error);
             showNotification('❌ Error de conexión', 'error');
         }
-    });
+    }
+
+    function clearInvoiceForm() {
+        invoiceForm.reset();
+        invoiceItems = [];
+        invoiceItemsBody.innerHTML = '';
+        addInvoiceLine();
+        updateTotals();
+        setTodayDate();
+        currentEditingInvoiceId = null;
+
+        document.getElementById('invoice_number').readOnly = false;
+
+        // Hide cancel edit button
+        const cancelBtn = document.getElementById('cancelEditBtn');
+        if (cancelBtn) cancelBtn.classList.add('hidden');
+
+        // Reset submit buttons text if needed
+        document.getElementById('finalizeInvoiceBtn').textContent = '📝 Finalizar y Bloquear';
+
+        // Trigger change to reload next invoice number
+        const companySelect = document.getElementById('invoice_company');
+        if (companySelect.value) {
+            companySelect.dispatchEvent(new Event('change'));
+        }
+    }
+
+    // Expose edit function globally
+    // Expose edit function globally
+    window.editInvoice = async function (id) {
+        try {
+            const response = await fetch(`/api/invoices/${id}`, { credentials: 'include' });
+            const result = await response.json();
+
+            if (result.message === 'success' && result.data) {
+                const invoice = result.data.invoice;
+                const items = result.data.items;
+
+                currentEditingInvoiceId = id;
+
+                // Populate Form
+                document.getElementById('invoice_company').value = invoice.company_id || '';
+                document.getElementById('invoice_number').value = invoice.invoice_number || '';
+                document.getElementById('date').value = invoice.date || '';
+                document.getElementById('client_type').value = invoice.client_type || 'particular';
+                document.getElementById('client_name').value = invoice.client_name || '';
+                document.getElementById('client_cif').value = invoice.client_cif || '';
+                document.getElementById('client_address').value = invoice.client_address || '';
+                document.getElementById('notes').value = invoice.notes || '';
+
+                if (invoice.client_id) {
+                    const clientSelector = document.getElementById('client_selector');
+                    if (clientSelector) clientSelector.value = invoice.client_id;
+                }
+
+                // Populate Items
+                if (items && Array.isArray(items)) {
+                    invoiceItems = items.map(item => ({
+                        article_id: item.article_id,
+                        description: item.description,
+                        quantity: item.quantity,
+                        unit_price: item.unit_price,
+                        vat_rate: item.vat_rate,
+                        line_total: item.line_total,
+                        line_vat: item.line_vat,
+                        line_total_with_vat: item.line_total_with_vat
+                    }));
+                } else {
+                    invoiceItems = [];
+                }
+
+                renderInvoiceItems();
+                updateTotals();
+
+                // Show Cancel Edit button
+                const cancelBtn = document.getElementById('cancelEditBtn');
+                if (cancelBtn) cancelBtn.classList.remove('hidden');
+
+                // Update final button text
+                const finalizeBtn = document.getElementById('finalizeInvoiceBtn');
+                if (finalizeBtn) finalizeBtn.textContent = '📝 Finalizar Borrador';
+
+                // Scroll to form
+                const formSection = document.querySelector('.form-section');
+                if (formSection) formSection.scrollIntoView({ behavior: 'smooth' });
+
+                showNotification('✏️ Factura cargada para edición', 'info');
+            } else {
+                showNotification('❌ Error: Formato de respuesta inválido', 'error');
+            }
+        } catch (error) {
+            console.error('Error loading invoice:', error);
+            showNotification('❌ Error al cargar factura', 'error');
+        }
+    };
+
+    async function loadInvoiceItemsForEdit(invoiceId) {
+        // This requires an endpoint I might need to create.
+        // Or I can use the trick: Add GET /api/invoices/:id to return items.
+        // I will do that in next step.
+    }
 
     // Filter invoices
     filterCompanySelect.addEventListener('change', () => {
@@ -518,6 +667,54 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
 
     // Modal Management
+
+    // Export and Print
+    const exportCsvBtn = document.getElementById('exportCsvBtn');
+    const printListBtn = document.getElementById('printListBtn');
+
+    if (exportCsvBtn) {
+        exportCsvBtn.addEventListener('click', () => {
+            // Basic implementation: Export what is currently filtered (by fetching again with filters or just using current data?)
+            // Better: construct query params from filters and hit an export endpoint.
+            // OR: Client-side export of current table.
+            // Let's do client side for simplicity mostly, but backend is better for large datasets.
+            // Implementation Plan said: Backend GET /api/reports/invoices/export
+            // So let's build the query string and open that URL.
+            const queryParams = new URLSearchParams({
+                company_id: filterCompanySelect.value,
+                date_from: document.getElementById('filter_date_from').value,
+                date_to: document.getElementById('filter_date_to').value,
+                client: document.getElementById('filter_client').value,
+                invoice_number: document.getElementById('filter_invoice_number').value,
+                client_type: document.getElementById('filter_client_type').value,
+                verifactu: document.getElementById('filter_verifactu').value,
+                status: document.getElementById('filter_status').value,
+                format: 'csv'
+            }).toString();
+
+            window.location.href = `/api/reports/invoices/export?${queryParams}`;
+        });
+    }
+
+    if (printListBtn) {
+        printListBtn.addEventListener('click', () => {
+            const queryParams = new URLSearchParams({
+                company_id: filterCompanySelect.value,
+                date_from: document.getElementById('filter_date_from').value,
+                date_to: document.getElementById('filter_date_to').value,
+                client: document.getElementById('filter_client').value,
+                invoice_number: document.getElementById('filter_invoice_number').value,
+                client_type: document.getElementById('filter_client_type').value,
+                verifactu: document.getElementById('filter_verifactu').value,
+                status: document.getElementById('filter_status').value,
+                print: 'true'
+            }).toString();
+
+            // Open in new window
+            window.open(`/api/reports/invoices/print?${queryParams}`, '_blank');
+        });
+    }
+
     closeArticleModal.addEventListener('click', () => {
         articleModal.classList.add('hidden');
     });
@@ -1023,25 +1220,34 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             // Add cancelled badge if applicable
-            let cancelledBadge = '';
+            // Determine Status Badge
+            let statusBadge = '';
             if (invoice.is_cancelled) {
-                cancelledBadge = '<span class="badge-cancelled">⚠️ Anulada</span>';
+                statusBadge = '<span class="badge badge-cancelled">⚠️ Anulada</span>';
+            } else if (invoice.status === 'final') {
+                statusBadge = '<span class="badge badge-final">🔒 Finalizada</span>';
+            } else {
+                statusBadge = '<span class="badge badge-draft">📝 Borrador</span>';
             }
 
             row.innerHTML = `
                 <td>${invoice.company_name || 'N/A'}</td>
-                <td>${invoice.invoice_number}${verifactuBadge}${cancelledBadge}</td>
+                <td>${invoice.invoice_number}${verifactuBadge}</td>
                 <td>${formatDate(invoice.date)}</td>
                 <td>${invoice.client_name}</td>
+                <td>${statusBadge}</td>
                 <td>${clientTypeBadge}</td>
                 <td style="font-weight: 600;">${formatCurrency(invoice.total)}</td>
                 <td>
                     <div class="btn-actions">
+                        ${invoice.status !== 'final' && !invoice.is_cancelled ?
+                    `<button class="btn-secondary" onclick="editInvoice(${invoice.id})">✏️ Editar</button>` : ''}
+                        
                         <button class="btn-preview" onclick="previewPDF(${invoice.id}, '${invoice.invoice_number}')">
-                            👁️ Vista Previa
+                            👁️
                         </button>
                         <button class="btn-pdf" onclick="downloadPDF(${invoice.id}, '${invoice.invoice_number}')">
-                            📄 Descargar
+                            📄
                         </button>
                     </div>
                 </td>

@@ -1069,12 +1069,19 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
             return;
         }
 
-        // Get next sequence number
-        const invoiceSequence = await verifactu.getNextInvoiceSequence(db, req.body.company_id);
+        // Check status (default to draft if not specified, unless explicit finalize action)
+        const status = req.body.status || 'draft';
+        const isFinal = status === 'final';
 
-        // Get previous hash for chaining (if Veri*Factu enabled)
+        // Get next sequence number ONLY if finalizing
+        let invoiceSequence = null;
+        if (isFinal) {
+            invoiceSequence = await verifactu.getNextInvoiceSequence(db, req.body.company_id);
+        }
+
+        // Get previous hash for chaining (if Veri*Factu enabled AND finalizing)
         let previousHash = null;
-        if (company.verifactu_enabled) {
+        if (company.verifactu_enabled && isFinal) {
             previousHash = await verifactu.getPreviousInvoiceHash(db, req.body.company_id);
         }
 
@@ -1092,15 +1099,17 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
             subtotal: req.body.subtotal || 0,
             total_vat: req.body.total_vat || 0,
             total: req.body.total || 0,
-            previous_hash: previousHash
+            previous_hash: previousHash,
+            status: status,
+            finalized_at: isFinal ? new Date().toISOString() : null
         };
 
-        // Generate hash and signature if Veri*Factu enabled
+        // Generate hash and signature if Veri*Factu enabled AND finalizing
         let currentHash = null;
         let verifactuSignature = null;
         let qrCode = null;
 
-        if (company.verifactu_enabled) {
+        if (company.verifactu_enabled && isFinal) {
             currentHash = verifactu.generateInvoiceHash(invoiceData);
             verifactuSignature = verifactu.generateVerifactuSignature(currentHash, company);
 
@@ -1115,14 +1124,14 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
         // Insert invoice
         const invoiceSql = `INSERT INTO invoices 
             (company_id, client_id, invoice_number, invoice_sequence, date, client_name, client_cif, client_address, 
-             client_type, notes, subtotal, total_vat, total, previous_hash, current_hash, qr_code, verifactu_signature) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+             client_type, notes, subtotal, total_vat, total, previous_hash, current_hash, qr_code, verifactu_signature, status, finalized_at) 
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         const invoiceParams = [
             invoiceData.company_id, invoiceData.client_id, invoiceData.invoice_number, invoiceData.invoice_sequence,
             invoiceData.date, invoiceData.client_name, invoiceData.client_cif, invoiceData.client_address,
             invoiceData.client_type, invoiceData.notes, invoiceData.subtotal, invoiceData.total_vat,
-            invoiceData.total, previousHash, currentHash, qrCode, verifactuSignature
+            invoiceData.total, previousHash, currentHash, qrCode, verifactuSignature, invoiceData.status, invoiceData.finalized_at
         ];
 
         const invoiceId = await new Promise((resolve, reject) => {
@@ -1132,8 +1141,10 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
             });
         });
 
-        // Update company's last sequence number
-        await verifactu.updateCompanySequence(db, req.body.company_id, invoiceSequence);
+        // Update company's last sequence number ONLY if finalizing
+        if (isFinal && invoiceSequence) {
+            await verifactu.updateCompanySequence(db, req.body.company_id, invoiceSequence);
+        }
 
         // Insert invoice items
         const items = req.body.items;
@@ -1437,6 +1448,162 @@ app.post('/api/invoices/:id/cancel', async (req, res) => {
     }
 });
 
+// Update an invoice (only if draft)
+app.put('/api/invoices/:id', requireAuth, async (req, res) => {
+    const invoiceId = req.params.id;
+
+    try {
+        // Check if invoice exists and is draft
+        const invoice = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM invoices WHERE id = ?', [invoiceId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: 'Factura no encontrada' });
+        }
+
+        if (invoice.status === 'final') {
+            return res.status(403).json({ error: 'No se puede editar una factura finalizada' });
+        }
+
+        // Update fields
+        const { date, client_name, client_cif, client_address, client_type, notes, subtotal, total_vat, total, items, client_id, company_id, invoice_number } = req.body;
+
+        const updateSql = `UPDATE invoices SET 
+            date = ?, client_name = ?, client_cif = ?, client_address = ?, client_type = ?, 
+            notes = ?, subtotal = ?, total_vat = ?, total = ?, client_id = ?, company_id = ?, invoice_number = ?
+            WHERE id = ?`;
+
+        const updateParams = [date, client_name, client_cif, client_address, client_type, notes, subtotal, total_vat, total, client_id || null, company_id, invoice_number, invoiceId];
+
+        await new Promise((resolve, reject) => {
+            db.run(updateSql, updateParams, function (err) {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Update items (delete all and recreate)
+        await new Promise((resolve, reject) => {
+            db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        const itemSql = `INSERT INTO invoice_items 
+            (invoice_id, article_id, description, quantity, unit_price, vat_rate, line_total, line_vat, line_total_with_vat, sort_order) 
+            VALUES (?,?,?,?,?,?,?,?,?,?)`;
+
+        if (items && Array.isArray(items)) {
+            for (let index = 0; index < items.length; index++) {
+                const item = items[index];
+                const itemParams = [
+                    invoiceId, item.article_id || null, item.description, item.quantity,
+                    item.unit_price, item.vat_rate, item.line_total, item.line_vat, item.line_total_with_vat, index
+                ];
+                await new Promise((resolve, reject) => {
+                    db.run(itemSql, itemParams, (err) => {
+                        if (err) reject(err);
+                        else resolve();
+                    });
+                });
+            }
+        }
+
+        res.json({ message: 'Factura actualizada correctamente' });
+
+    } catch (error) {
+        console.error('Error updating invoice:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+// Finalize an invoice (Lock and Generate Veri*Factu data)
+app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
+    const invoiceId = req.params.id;
+
+    try {
+        // Get invoice and company data
+        const invoice = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM invoices WHERE id = ?', [invoiceId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
+        if (invoice.status === 'final') return res.status(400).json({ error: 'La factura ya está finalizada' });
+
+        const company = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM companies WHERE id = ?', [invoice.company_id], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        // Logic similar to CREATE but only for finalization components
+        const invoiceSequence = await verifactu.getNextInvoiceSequence(db, invoice.company_id);
+
+        let previousHash = null;
+        if (company.verifactu_enabled) {
+            previousHash = await verifactu.getPreviousInvoiceHash(db, invoice.company_id);
+        }
+
+        // Prepare data for hashing (need to reconstruct full object)
+        const invoiceData = {
+            company_id: invoice.company_id,
+            invoice_number: invoice.invoice_number,
+            invoice_sequence: invoiceSequence,
+            date: invoice.date,
+            subtotal: invoice.subtotal,
+            total: invoice.total,
+            client_cif: invoice.client_cif,
+            previous_hash: previousHash
+        };
+
+        let currentHash = null;
+        let verifactuSignature = null;
+        let qrCode = null;
+
+        if (company.verifactu_enabled) {
+            currentHash = verifactu.generateInvoiceHash(invoiceData);
+            verifactuSignature = verifactu.generateVerifactuSignature(currentHash, company);
+
+            const qrInvoiceData = { ...invoiceData, current_hash: currentHash };
+            qrCode = await verifactu.generateInvoiceQR(qrInvoiceData, company);
+        }
+
+        // Update invoice with final data
+        const updateSql = `UPDATE invoices SET 
+            status = 'final', finalized_at = ?, invoice_sequence = ?, 
+            previous_hash = ?, current_hash = ?, qr_code = ?, verifactu_signature = ?
+            WHERE id = ?`;
+
+        const finalizedAt = new Date().toISOString();
+        const params = [finalizedAt, invoiceSequence, previousHash, currentHash, qrCode, verifactuSignature, invoiceId];
+
+        await new Promise((resolve, reject) => {
+            db.run(updateSql, params, function (err) {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Update company sequence
+        await verifactu.updateCompanySequence(db, invoice.company_id, invoiceSequence);
+
+        res.json({ message: 'Factura finalizada correctamente', qr_code: qrCode });
+
+    } catch (error) {
+        console.error('Error finalizing invoice:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
 // PDF Generation Endpoint
 app.get('/api/invoices/:id/pdf', async (req, res) => {
     const invoiceId = req.params.id;
@@ -1523,6 +1690,202 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
         console.error('Error:', error);
         res.status(500).json({ "error": error.message });
     }
+});
+
+// ============================================
+// REPORTS ENDPOINTS
+// ============================================
+
+// Helper to build filter query
+function buildInvoiceFilterQuery(req) {
+    let sql = `SELECT invoices.*, companies.company_name as company_name 
+               FROM invoices 
+               LEFT JOIN companies ON invoices.company_id = companies.id 
+               WHERE 1=1`;
+    const params = [];
+
+    if (req.query.company_id) {
+        sql += ` AND invoices.company_id = ?`;
+        params.push(req.query.company_id);
+    }
+
+    if (req.query.date_from) {
+        sql += ` AND invoices.date >= ?`;
+        params.push(req.query.date_from);
+    }
+
+    if (req.query.date_to) {
+        sql += ` AND invoices.date <= ?`;
+        params.push(req.query.date_to);
+    }
+
+    if (req.query.client) {
+        sql += ` AND invoices.client_name LIKE ?`;
+        params.push(`%${req.query.client}%`);
+    }
+
+    if (req.query.invoice_number) {
+        sql += ` AND invoices.invoice_number LIKE ?`;
+        params.push(`%${req.query.invoice_number}%`);
+    }
+
+    if (req.query.client_type) {
+        sql += ` AND invoices.client_type = ?`;
+        params.push(req.query.client_type);
+    }
+
+    if (req.query.verifactu === 'yes') {
+        sql += ` AND invoices.current_hash IS NOT NULL`;
+    } else if (req.query.verifactu === 'no') {
+        sql += ` AND invoices.current_hash IS NULL`;
+    }
+
+    if (req.query.status === 'active') {
+        sql += ` AND invoices.is_cancelled = 0 AND invoices.status = 'final'`;
+    } else if (req.query.status === 'cancelled') {
+        sql += ` AND invoices.is_cancelled = 1`;
+    } else if (req.query.status === 'draft') {
+        sql += ` AND invoices.status = 'draft'`;
+    }
+
+    sql += ` ORDER BY invoices.date DESC, invoices.created_at DESC`;
+
+    return { sql, params };
+}
+
+// Export Invoices to CSV
+app.get('/api/reports/invoices/export', requireAuth, (req, res) => {
+    const { sql, params } = buildInvoiceFilterQuery(req);
+
+    db.all(sql, params, (err, rows) => {
+        if (err) return res.status(500).send("Error generating report");
+
+        // Generate CSV
+        const header = ["Empresa", "Nº Factura", "Fecha", "Cliente", "CIF Cliente", "Tipo", "Base Imponible", "IVA", "Total", "Estado", "Veri*Factu"];
+        const csvRows = [header.join(";")]; // Use semicolon for Excel compatibility in EU
+
+        rows.forEach(row => {
+            let status = row.is_cancelled ? 'Anulada' : (row.status === 'final' ? 'Finalizada' : 'Borrador');
+            let verifactu = row.current_hash ? 'Sí' : 'No';
+
+            const data = [
+                `"${row.company_name || ''}"`,
+                `"${row.invoice_number}"`,
+                row.date,
+                `"${row.client_name}"`,
+                `"${row.client_cif}"`,
+                row.client_type,
+                (row.subtotal || 0).toFixed(2).replace('.', ','),
+                (row.total_vat || 0).toFixed(2).replace('.', ','),
+                (row.total || 0).toFixed(2).replace('.', ','),
+                status,
+                verifactu
+            ];
+            csvRows.push(data.join(";"));
+        });
+
+        const csvString = "\uFEFF" + csvRows.join("\n"); // Add BOM for Excel UTF-8
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', 'attachment; filename="listado_facturas.csv"');
+        res.send(csvString);
+    });
+});
+
+// Print Invoice List
+app.get('/api/reports/invoices/print', requireAuth, (req, res) => {
+    const { sql, params } = buildInvoiceFilterQuery(req);
+
+    db.all(sql, params, (err, rows) => {
+        if (err) {
+            console.error('Error generating print view:', err);
+            return res.status(500).send("Error generating report");
+        }
+
+        let totalSum = 0;
+        let vatSum = 0;
+        let baseSum = 0;
+
+        const tableRows = rows.map(row => {
+            try {
+                if (!row.is_cancelled) {
+                    totalSum += (Number(row.total) || 0);
+                    vatSum += (Number(row.total_vat) || 0);
+                    baseSum += (Number(row.subtotal) || 0);
+                }
+
+                let statusBadge = row.is_cancelled ? '<span style="color:red">[ANULADA]</span>' : (row.status === 'draft' ? '<span style="color:gray">[BORRADOR]</span>' : '');
+
+                return `
+                    <tr>
+                        <td>${row.date || ''}</td>
+                        <td>${row.invoice_number || ''} ${statusBadge}</td>
+                        <td>${row.client_name || ''}</td>
+                        <td>${row.client_cif || ''}</td>
+                        <td style="text-align:right">${(Number(row.subtotal) || 0).toFixed(2)} €</td>
+                        <td style="text-align:right">${(Number(row.total_vat) || 0).toFixed(2)} €</td>
+                        <td style="text-align:right">${(Number(row.total) || 0).toFixed(2)} €</td>
+                    </tr>
+                `;
+            } catch (err) {
+                console.error('Error generating row:', err, row);
+                return `<tr><td colspan="7">Error en fila: ${err.message}</td></tr>`;
+            }
+        }).join('');
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Listado de Facturas</title>
+                <style>
+                    body { font-family: sans-serif; padding: 20px; }
+                    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+                    th { background-color: #f2f2f2; }
+                    h1 { margin-bottom: 5px; }
+                    .filters { margin-bottom: 20px; color: #666; font-size: 14px; }
+                    .totals { margin-top: 20px; text-align: right; font-weight: bold; }
+                    @media print {
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="no-print" style="margin-bottom:20px">
+                    <button onclick="window.print()">🖨️ Imprimir</button>
+                    <button onclick="window.close()">Cerrar</button>
+                </div>
+                <h1>Listado de Facturas</h1>
+                <div class="filters">Generado el: ${new Date().toLocaleString()}</div>
+                
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Nº Factura</th>
+                            <th>Cliente</th>
+                            <th>NIF/CIF</th>
+                            <th style="text-align:right">Base Imponible</th>
+                            <th style="text-align:right">IVA</th>
+                            <th style="text-align:right">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${tableRows}
+                    </tbody>
+                </table>
+                <div class="totals">
+                    <p>Total Base: ${baseSum.toFixed(2)} €</p>
+                    <p>Total IVA: ${vatSum.toFixed(2)} €</p>
+                    <p>TOTAL: ${totalSum.toFixed(2)} €</p>
+                </div>
+            </body>
+            </html>
+        `;
+
+        res.send(html);
+    });
 });
 
 // ============================================

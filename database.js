@@ -61,6 +61,8 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
             client_id INTEGER,
             invoice_number TEXT,
             invoice_sequence INTEGER,
+            status TEXT DEFAULT 'draft',
+            finalized_at TEXT,
             date TEXT,
             client_name TEXT,
             client_cif TEXT,

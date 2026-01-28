@@ -128,14 +128,24 @@
                         </div>
 
                         <div class="form-actions">
-                            <button type="submit" class="btn-primary">💾 Guardar Factura</button>
+                            <button type="button" class="btn-secondary" id="saveDraftBtn">💾 Guardar Borrador</button>
+                            <button type="submit" class="btn-primary" id="finalizeInvoiceBtn">📝 Finalizar y
+                                Bloquear</button>
                             <button type="button" class="btn-secondary" id="clearFormBtn">🗑️ Limpiar</button>
+                            <button type="button" class="btn-danger hidden" id="cancelEditBtn">❌ Cancelar
+                                Edición</button>
                         </div>
                     </form>
                 </section>
 
                 <section class="card list-section">
-                    <h2>Historial de Facturas</h2>
+                    <div class="section-header">
+                        <h2>Historial de Facturas</h2>
+                        <div class="header-actions">
+                            <button class="btn-secondary" id="exportCsvBtn">📄 Exportar CSV</button>
+                            <button class="btn-secondary" id="printListBtn">🖨️ Imprimir Listado</button>
+                        </div>
+                    </div>
                     <!-- Advanced Filters Panel -->
                     <div class="filters-panel">
                         <div class="filter-row">
@@ -208,6 +218,7 @@
                                     <th>Nº Factura</th>
                                     <th>Fecha</th>
                                     <th>Cliente</th>
+                                    <th>Estado</th>
                                     <th>Tipo</th>
                                     <th>Total</th>
                                     <th>Acciones</th>
