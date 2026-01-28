@@ -10,9 +10,11 @@ const { generateInvoicePDF } = require('./pdfGenerator.js');
 const verifactu = require('./verifactu.js');
 const { hashPassword, verifyPassword, requireAuth, requireRole, getCurrentUser } = require('./auth.js');
 const emailService = require('./email-service.js');
+const BackupManager = require('./backup-manager.js');
 
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
+const backupManager = new BackupManager();
 
 // Trust proxy - CRITICAL for production behind reverse proxy (Coolify, SSL termination, etc)
 app.set('trust proxy', true); // Trust all proxies in the chain
@@ -200,10 +202,13 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
     }
 
     try {
-        db.get('SELECT password_hash FROM users WHERE id = ?', [userId], async (err, user) => {
+        db.get('SELECT password_hash, must_change_password, username FROM users WHERE id = ?', [userId], async (err, user) => {
             if (err || !user) {
                 return res.status(500).json({ error: 'Error del servidor' });
             }
+
+            const wasMustChangePassword = user.must_change_password === 1;
+            const username = user.username;
 
             const isValid = await verifyPassword(current_password, user.password_hash);
             if (!isValid) {
@@ -224,6 +229,17 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
 
                     req.session.save((err) => {
                         if (err) console.error('Session save error after password change:', err);
+
+                        // Si es el primer cambio de contraseña tras instalación (solo para admin)
+                        if (wasMustChangePassword && username === 'admin') {
+                            console.log('📦 Realizando backup automático post-instalación...');
+                            backupManager.createBackup().then(backup => {
+                                console.log('✅ Backup post-instalación creado:', backup.name);
+                            }).catch(err => {
+                                console.error('❌ Error en backup automático:', err);
+                            });
+                        }
+
                         res.json({ message: 'Contraseña cambiada exitosamente' });
                     });
                 }
@@ -1302,9 +1318,6 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
 // ============================================
 // BACKUP MANAGEMENT ENDPOINTS (Admin only)
 // ============================================
-
-const BackupManager = require('./backup-manager.js');
-const backupManager = new BackupManager();
 
 // Create backup
 app.post('/api/backups/create', requireAuth, requireRole('admin'), async (req, res) => {
