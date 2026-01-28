@@ -9,12 +9,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return; // Stop execution
     }
 
-    // State
     let invoiceItems = [];
     let articles = [];
     let companies = [];
     let currentArticleRow = null;
-    // currentUser is now window.currentUser (declared above)
 
     // DOM Elements
     const tabs = document.querySelectorAll('.tab-btn');
@@ -1196,26 +1194,36 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
     }
-    // Logout
-    window.logout = async function () {
-        try {
-            const response = await fetch('/api/auth/logout', {
-                method: 'POST',
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                // Clear localStorage
-                localStorage.removeItem('user');
-                window.currentUser = null;
-                // Redirect to login
-                window.location.href = '/login.html';
-            } else {
-                showNotification('❌ Error al cerrar sesión', 'error');
-            }
-        } catch (error) {
-            console.error('Logout error:', error);
-            showNotification('❌ Error de conexión al cerrar sesión', 'error');
-        }
-    };
 });
+
+// Logout (Defined outside to ensure it's available even if DOMContentLoaded has issues)
+window.logout = async function () {
+    try {
+        const response = await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include'
+        });
+
+        if (response.ok) {
+            // Clear localStorage
+            localStorage.removeItem('user');
+            window.currentUser = null;
+            // Redirect to login
+            window.location.href = '/login.html';
+        } else {
+            // If showNotification is not available yet, fall back to alert
+            if (typeof showNotification === 'function') {
+                showNotification('❌ Error al cerrar sesión', 'error');
+            } else {
+                alert('Error al cerrar sesión');
+            }
+        }
+    } catch (error) {
+        console.error('Logout error:', error);
+        if (typeof showNotification === 'function') {
+            showNotification('❌ Error de conexión al cerrar sesión', 'error');
+        } else {
+            alert('Error de conexión al cerrar sesión');
+        }
+    }
+};
