@@ -773,6 +773,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function loadCompanies() {
+        // Make available globally for logo-management.js
+        window.loadCompanies = loadCompanies;
         try {
             const response = await fetch('/api/companies', { credentials: 'include' });
             const result = await response.json();

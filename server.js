@@ -1505,8 +1505,10 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
 
                     // Set headers for PDF download with proper filename
                     const filename = `Factura_${invoiceData.invoice_number}.pdf`;
+                    const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
+
                     res.setHeader('Content-Type', 'application/pdf');
-                    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+                    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
                     res.setHeader('Content-Length', pdfBuffer.length);
                     res.send(pdfBuffer);
 

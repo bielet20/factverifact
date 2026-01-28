@@ -8,8 +8,8 @@ const logoPreview = document.getElementById('logo_preview');
 const logoPreviewImg = document.getElementById('logo_preview_img');
 const removeLogoBtn = document.getElementById('remove_logo_btn');
 
-let currentCompanyId = null;
-let logoFileToUpload = null;
+window.currentCompanyId = null;
+window.logoFileToUpload = null;
 
 if (companyLogoInput) {
     companyLogoInput.addEventListener('change', (e) => {
@@ -37,24 +37,24 @@ if (companyLogoInput) {
             };
             reader.readAsDataURL(file);
 
-            logoFileToUpload = file;
+            window.logoFileToUpload = file;
         }
     });
 }
 
 if (removeLogoBtn) {
     removeLogoBtn.addEventListener('click', async () => {
-        if (currentCompanyId) {
+        if (window.currentCompanyId) {
             // Delete logo from server
             if (confirm('¿Estás seguro de eliminar el logo?')) {
-                await deleteCompanyLogo(currentCompanyId);
+                await deleteCompanyLogo(window.currentCompanyId);
             }
         } else {
             // Just clear the preview
             logoPreviewImg.src = '';
             logoPreview.style.display = 'none';
             companyLogoInput.value = '';
-            logoFileToUpload = null;
+            window.logoFileToUpload = null;
         }
     });
 }
@@ -98,10 +98,12 @@ async function deleteCompanyLogo(companyId) {
             logoPreviewImg.src = '';
             logoPreview.style.display = 'none';
             companyLogoInput.value = '';
-            logoFileToUpload = null;
-            currentCompanyId = null;
+            window.logoFileToUpload = null;
+            window.currentCompanyId = null;
             alert('Logo eliminado exitosamente');
-            loadCompanies(); // Reload companies list
+            if (typeof window.loadCompanies === 'function') {
+                window.loadCompanies(); // Reload companies list
+            }
         } else {
             alert(result.error || 'Error al eliminar logo');
         }
@@ -112,7 +114,7 @@ async function deleteCompanyLogo(companyId) {
 }
 
 function setCompanyLogo(companyId, logoPath) {
-    currentCompanyId = companyId;
+    window.currentCompanyId = companyId;
     if (logoPath) {
         logoPreviewImg.src = logoPath;
         logoPreview.style.display = 'block';
@@ -121,5 +123,5 @@ function setCompanyLogo(companyId, logoPath) {
         logoPreview.style.display = 'none';
     }
     companyLogoInput.value = '';
-    logoFileToUpload = null;
+    window.logoFileToUpload = null;
 }
