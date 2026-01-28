@@ -95,4 +95,4 @@ docker-compose restart
 
 ## 📄 Licencia
 
-Propietario - Nofre Plomer
+Propietario - GABRIEL RIVERO SAMPOL
