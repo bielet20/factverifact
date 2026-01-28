@@ -2,16 +2,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Global variable for current user
     window.currentUser = null;
 
-    // CRITICAL: Check authentication before loading app
-    const isLoggedIn = await checkAuth();
-    if (!isLoggedIn) {
-        window.location.href = '/login.html';
-        return; // Stop execution
-    }
-
     let invoiceItems = [];
     let articles = [];
     let companies = [];
+    let clients = [];
     let currentArticleRow = null;
 
     // DOM Elements
@@ -22,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const companyForm = document.getElementById('companyForm');
     const articleForm = document.getElementById('articleForm');
     const invoiceForm = document.getElementById('invoiceForm');
+    const clientForm = document.getElementById('clientForm');
 
     // Buttons
     const toggleCompanyFormBtn = document.getElementById('toggleCompanyForm');
@@ -30,16 +25,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     const cancelArticleFormBtn = document.getElementById('cancelArticleForm');
     const addLineBtn = document.getElementById('addLineBtn');
     const clearFormBtn = document.getElementById('clearFormBtn');
+    const toggleClientFormBtn = document.getElementById('toggleClientForm');
+    const cancelClientFormBtn = document.getElementById('cancelClientForm');
 
     // Containers
     const companyFormContainer = document.getElementById('companyFormContainer');
     const articleFormContainer = document.getElementById('articleFormContainer');
     const invoiceItemsBody = document.getElementById('invoiceItemsBody');
+    const clientFormContainer = document.getElementById('clientFormContainer');
 
     // Selects
     const activeCompanySelect = document.getElementById('active_company');
     const invoiceCompanySelect = document.getElementById('invoice_company');
     const filterCompanySelect = document.getElementById('filter_company');
+    const clientSelector = document.getElementById('client_selector');
 
     // Search
     const articleSearch = document.getElementById('articleSearch');
@@ -117,6 +116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await Promise.all([
             loadCompanies(),
             loadArticles(),
+            loadClients(),
             loadInvoices()
         ]);
 
@@ -264,6 +264,176 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     });
 
+    // Client Management
+    if (toggleClientFormBtn) {
+        toggleClientFormBtn.addEventListener('click', () => {
+            clientFormContainer.classList.toggle('hidden');
+        });
+    }
+
+    if (cancelClientFormBtn) {
+        cancelClientFormBtn.addEventListener('click', () => {
+            clientFormContainer.classList.add('hidden');
+            clientForm.reset();
+            document.getElementById('client_id_edit').value = '';
+        });
+    }
+
+    if (clientForm) {
+        clientForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const editId = document.getElementById('client_id_edit').value;
+            const url = editId ? `/api/clients/${editId}` : '/api/clients';
+            const method = editId ? 'PUT' : 'POST';
+
+            const formData = {
+                name: document.getElementById('client_name_mgt').value,
+                cif: document.getElementById('client_cif_mgt').value,
+                client_type: document.getElementById('client_type_mgt').value,
+                phone: document.getElementById('client_phone_mgt').value,
+                email: document.getElementById('client_email_mgt').value,
+                address: document.getElementById('client_address_mgt').value
+            };
+
+            try {
+                const response = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData),
+                    credentials: 'include'
+                });
+
+                if (response.ok) {
+                    clientForm.reset();
+                    document.getElementById('client_id_edit').value = '';
+                    clientFormContainer.classList.add('hidden');
+                    loadClients();
+                    showNotification('✅ Cliente guardado correctamente', 'success');
+                } else {
+                    const errorData = await response.json();
+                    showNotification('❌ Error: ' + (errorData.error || 'Error desconocido'), 'error');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showNotification('❌ Error de conexión', 'error');
+            }
+        });
+    }
+
+    async function loadClients() {
+        try {
+            const response = await fetch('/api/clients', { credentials: 'include' });
+            if (response.ok) {
+                const data = await response.json();
+                clients = data.data;
+                renderClientsTable();
+                updateClientSelector();
+            }
+        } catch (error) {
+            console.error('Error loading clients:', error);
+        }
+    }
+
+    function renderClientsTable() {
+        const tbody = document.querySelector('#clientsTable tbody');
+        if (!tbody) return;
+
+        tbody.innerHTML = '';
+
+        clients.forEach(client => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${client.name}</td>
+                <td>${client.cif}</td>
+                <td>
+                    <div class="client-contact">
+                        ${client.phone ? `<div>📞 ${client.phone}</div>` : ''}
+                        ${client.email ? `<div>📧 ${client.email}</div>` : ''}
+                    </div>
+                </td>
+                <td><span class="badge badge-${client.client_type}">${client.client_type}</span></td>
+                <td>
+                    <div class="action-buttons">
+                        <button class="btn-icon btn-edit" onclick="window.editClient(${client.id})" title="Editar">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="window.deleteClient(${client.id})" title="Eliminar">🗑️</button>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+    }
+
+    function updateClientSelector() {
+        if (!clientSelector) return;
+
+        const currentValue = clientSelector.value;
+        clientSelector.innerHTML = '<option value="">-- Manual / No guardado --</option>';
+
+        clients.forEach(client => {
+            const option = document.createElement('option');
+            option.value = client.id;
+            option.textContent = `${client.name} (${client.cif})`;
+            clientSelector.appendChild(option);
+        });
+
+        clientSelector.value = currentValue;
+    }
+
+    if (clientSelector) {
+        clientSelector.addEventListener('change', (e) => {
+            const clientId = e.target.value;
+            if (!clientId) return;
+
+            const client = clients.find(c => c.id == clientId);
+            if (client) {
+                document.getElementById('client_name').value = client.name;
+                document.getElementById('client_cif').value = client.cif;
+                document.getElementById('client_address').value = client.address;
+                document.getElementById('client_type').value = client.client_type;
+            }
+        });
+    }
+
+    // Expose functions to window for onclick handlers
+    window.editClient = function (id) {
+        const client = clients.find(c => c.id == id);
+        if (client) {
+            document.getElementById('client_id_edit').value = client.id;
+            document.getElementById('client_name_mgt').value = client.name;
+            document.getElementById('client_cif_mgt').value = client.cif;
+            document.getElementById('client_type_mgt').value = client.client_type;
+            document.getElementById('client_phone_mgt').value = client.phone || '';
+            document.getElementById('client_email_mgt').value = client.email || '';
+            document.getElementById('client_address_mgt').value = client.address || '';
+
+            clientFormContainer.classList.remove('hidden');
+            clientFormContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    window.deleteClient = async function (id) {
+        if (!confirm('¿Estás seguro de que deseas eliminar este cliente?')) return;
+
+        try {
+            const response = await fetch(`/api/clients/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                loadClients();
+                showNotification('✅ Cliente eliminado correctamente', 'success');
+            } else {
+                showNotification('❌ Error al eliminar el cliente', 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting client:', error);
+            showNotification('❌ Error de conexión', 'error');
+        }
+    };
+
+
     articleSearch.addEventListener('input', (e) => {
         loadArticles(e.target.value);
     });
@@ -299,6 +469,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const formData = {
             company_id: parseInt(document.getElementById('invoice_company').value),
+            client_id: document.getElementById('client_selector')?.value || null,
             invoice_number: document.getElementById('invoice_number').value,
             date: document.getElementById('date').value,
             client_name: document.getElementById('client_name').value,

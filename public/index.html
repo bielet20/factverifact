@@ -25,6 +25,7 @@
         <nav class="tabs">
             <button class="tab-btn active" data-tab="invoices">Facturas</button>
             <button class="tab-btn" data-tab="articles">Artículos/Servicios</button>
+            <button class="tab-btn" data-tab="clients">Clientes</button>
             <button class="tab-btn" data-tab="companies">Empresas</button>
             <button class="tab-btn" data-tab="users" id="usersTab" style="display: none;">Usuarios</button>
             <button class="tab-btn" data-tab="backups" id="backupsTab" style="display: none;">📦 Backups</button>
@@ -59,7 +60,13 @@
                                 </select>
                             </div>
                             <div class="form-group">
-                                <label for="client_name">Cliente *</label>
+                                <label for="client_selector">Seleccionar Cliente Guardado</label>
+                                <select id="client_selector">
+                                    <option value="">-- Manual / No guardado --</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="client_name">Cliente / Nombre *</label>
                                 <input type="text" id="client_name" required placeholder="Nombre del cliente">
                             </div>
                             <div class="form-group">
@@ -284,6 +291,72 @@
                             </tbody>
                         </table>
                     </div>
+                </section>
+            </div>
+
+            <!-- CLIENTS TAB -->
+            <div id="clients-tab" class="tab-content">
+                <section class="card form-section">
+                    <div class="section-header">
+                        <h2>Gestión de Clientes</h2>
+                        <button type="button" class="btn-primary" id="toggleClientForm">+ Nuevo Cliente</button>
+                    </div>
+
+                    <div id="clientFormContainer" class="hidden">
+                        <form id="clientForm">
+                            <input type="hidden" id="client_id_edit">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label for="client_name_mgt">Nombre / Razón Social *</label>
+                                    <input type="text" id="client_name_mgt" required placeholder="Nombre del cliente">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client_cif_mgt">NIF/CIF *</label>
+                                    <input type="text" id="client_cif_mgt" required placeholder="12345678A">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client_type_mgt">Tipo de Cliente *</label>
+                                    <select id="client_type_mgt" required>
+                                        <option value="empresa">Empresa</option>
+                                        <option value="particular">Particular</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="client_phone_mgt">Teléfono</label>
+                                    <input type="tel" id="client_phone_mgt" placeholder="971 123 456">
+                                </div>
+                                <div class="form-group">
+                                    <label for="client_email_mgt">Email</label>
+                                    <input type="email" id="client_email_mgt" placeholder="cliente@ejemplo.com">
+                                </div>
+                                <div class="form-group full-width">
+                                    <label for="client_address_mgt">Dirección</label>
+                                    <input type="text" id="client_address_mgt" placeholder="Calle Ejemplo, 123">
+                                </div>
+                            </div>
+                            <div class="form-actions">
+                                <button type="button" class="btn-secondary" id="cancelClientForm">Cancelar</button>
+                                <button type="submit" class="btn-primary">Guardar Cliente</button>
+                            </div>
+                        </form>
+                    </div>
+                </section>
+
+                <section class="card table-secondary">
+                    <table id="clientsTable">
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>CIF/NIF</th>
+                                <th>Contacto</th>
+                                <th>Tipo</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Se cargará dinámicamente -->
+                        </tbody>
+                    </table>
                 </section>
             </div>
 

@@ -22,6 +22,7 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
             verifactu_software_id TEXT,
             verifactu_software_name TEXT DEFAULT 'Sistema Facturas v1.0',
             last_invoice_sequence INTEGER DEFAULT 0,
+            logo TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )`,
             (err) => {
@@ -57,6 +58,7 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
         db.run(`CREATE TABLE IF NOT EXISTS invoices (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             company_id INTEGER NOT NULL,
+            client_id INTEGER,
             invoice_number TEXT,
             invoice_sequence INTEGER,
             date TEXT,
@@ -149,6 +151,26 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                     console.error('Error creating users table:', err);
                 } else {
                     console.log('Users table ready.');
+                }
+            });
+
+        // Create clients table
+        db.run(`CREATE TABLE IF NOT EXISTS clients (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            cif TEXT NOT NULL,
+            address TEXT,
+            email TEXT,
+            phone TEXT,
+            client_type TEXT DEFAULT 'empresa',
+            is_active INTEGER DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )`,
+            (err) => {
+                if (err) {
+                    console.error('Error creating clients table:', err);
+                } else {
+                    console.log('Clients table ready.');
                 }
             });
     }

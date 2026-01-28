@@ -808,6 +808,110 @@ app.delete('/api/companies/:id/logo', requireAuth, (req, res) => {
     });
 });
 
+
+// ============================================
+// CLIENT MANAGEMENT ENDPOINTS
+// ============================================
+
+// List all clients
+app.get('/api/clients', requireAuth, (req, res) => {
+    var sql = "SELECT * FROM clients WHERE is_active = 1 ORDER BY name"
+    db.all(sql, [], (err, rows) => {
+        if (err) {
+            res.status(400).json({ "error": err.message });
+            return;
+        }
+        res.json({
+            "message": "success",
+            "data": rows
+        })
+    });
+});
+
+// Get a single client
+app.get('/api/clients/:id', requireAuth, (req, res) => {
+    var sql = "SELECT * FROM clients WHERE id = ?"
+    db.get(sql, [req.params.id], (err, row) => {
+        if (err) {
+            res.status(400).json({ "error": err.message });
+            return;
+        }
+        res.json({
+            "message": "success",
+            "data": row
+        })
+    });
+});
+
+// Create a new client
+app.post('/api/clients', requireAuth, (req, res) => {
+    const { name, cif, address, email, phone, client_type } = req.body;
+
+    if (!name || !cif) {
+        return res.status(400).json({ error: 'El nombre y el CIF son requeridos' });
+    }
+
+    const sql = `INSERT INTO clients (name, cif, address, email, phone, client_type) 
+                 VALUES (?, ?, ?, ?, ?, ?)`;
+    const params = [name, cif, address || '', email || '', phone || '', client_type || 'empresa'];
+
+    db.run(sql, params, function (err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        res.json({
+            "message": "success",
+            "id": this.lastID
+        });
+    });
+});
+
+// Update a client
+app.put('/api/clients/:id', requireAuth, (req, res) => {
+    const clientId = req.params.id;
+    const { name, cif, address, email, phone, client_type } = req.body;
+
+    if (!name || !cif) {
+        return res.status(400).json({ error: 'El nombre y el CIF son requeridos' });
+    }
+
+    const sql = `UPDATE clients SET 
+                name = ?, 
+                cif = ?, 
+                address = ?, 
+                email = ?, 
+                phone = ?, 
+                client_type = ? 
+                WHERE id = ?`;
+    const params = [name, cif, address || '', email || '', phone || '', client_type || 'empresa', clientId];
+
+    db.run(sql, params, function (err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        res.json({
+            "message": "success",
+            "changes": this.changes
+        });
+    });
+});
+
+// Delete/deactivate a client
+app.delete('/api/clients/:id', requireAuth, (req, res) => {
+    const clientId = req.params.id;
+
+    // We do a soft delete by setting is_active = 0
+    db.run('UPDATE clients SET is_active = 0 WHERE id = ?', [clientId], function (err) {
+        if (err) {
+            return res.status(400).json({ "error": err.message });
+        }
+        res.json({
+            "message": "success",
+            "changes": this.changes
+        });
+    });
+});
+
 // Articles Management Endpoints
 
 // Create a new article
@@ -976,6 +1080,7 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
 
         var invoiceData = {
             company_id: req.body.company_id,
+            client_id: req.body.client_id || null,
             invoice_number: req.body.invoice_number,
             invoice_sequence: invoiceSequence,
             date: req.body.date,
@@ -1009,12 +1114,12 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
 
         // Insert invoice
         const invoiceSql = `INSERT INTO invoices 
-            (company_id, invoice_number, invoice_sequence, date, client_name, client_cif, client_address, 
+            (company_id, client_id, invoice_number, invoice_sequence, date, client_name, client_cif, client_address, 
              client_type, notes, subtotal, total_vat, total, previous_hash, current_hash, qr_code, verifactu_signature) 
-            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`;
 
         const invoiceParams = [
-            invoiceData.company_id, invoiceData.invoice_number, invoiceData.invoice_sequence,
+            invoiceData.company_id, invoiceData.client_id, invoiceData.invoice_number, invoiceData.invoice_sequence,
             invoiceData.date, invoiceData.client_name, invoiceData.client_cif, invoiceData.client_address,
             invoiceData.client_type, invoiceData.notes, invoiceData.subtotal, invoiceData.total_vat,
             invoiceData.total, previousHash, currentHash, qrCode, verifactuSignature
