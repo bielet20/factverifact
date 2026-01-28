@@ -548,10 +548,11 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function selectArticle(article) {
         if (currentArticleRow !== null) {
-            invoiceItems[currentArticleRow] = {
+            const index = currentArticleRow;
+            invoiceItems[index] = {
                 article_id: article.id,
                 description: article.name + (article.description ? ' - ' + article.description : ''),
-                quantity: invoiceItems[currentArticleRow].quantity || 1,
+                quantity: invoiceItems[index].quantity || 1,
                 unit_price: article.unit_price,
                 vat_rate: article.vat_rate,
                 line_total: 0,
@@ -559,7 +560,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                 line_total_with_vat: 0
             };
 
-            updateLineTotal(currentArticleRow);
+            // Update DOM directly for the current row to show new values immediately
+            const rows = invoiceItemsBody.querySelectorAll('tr');
+            if (rows[index]) {
+                const btn = rows[index].querySelector('.article-selector-btn');
+                const descInput = rows[index].querySelector('.item-description');
+                const priceInput = rows[index].querySelector('.item-price');
+                const vatSelect = rows[index].querySelector('.item-vat');
+
+                if (btn) btn.textContent = article.name;
+                if (descInput) descInput.value = invoiceItems[index].description;
+                if (priceInput) priceInput.value = article.unit_price;
+                if (vatSelect) vatSelect.value = article.vat_rate;
+            }
+
+            updateLineTotal(index);
         }
 
         articleModal.classList.add('hidden');
