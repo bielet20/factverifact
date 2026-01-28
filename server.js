@@ -20,13 +20,11 @@ app.set('trust proxy', true); // Trust all proxies in the chain
 // Session configuration
 app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
-    resave: false,
-    saveUninitialized: false,
-    proxy: true, // Requerido para veracidad de req.secure tras proxies
+    resave: true, // Forzar resave para asegurar persistencia
+    saveUninitialized: true, // Cambiado a true temporalmente para asegurar que la cookie se emita
+    proxy: true,
     cookie: {
-        // Solo marcar como secure si estamos en producción Y hay HTTPS
-        // Si tienes problemas en Coolify sin HTTPS, esta configuración es más compatible
-        secure: process.env.NODE_ENV === 'production' && process.env.FORCE_HTTPS === 'true',
+        secure: false, // Forzar false para evitar problemas con HTTP en sslip.io/Coolify
         httpOnly: true,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
@@ -232,7 +230,10 @@ app.post('/api/auth/change-password', requireAuth, async (req, res) => {
                     // Update session
                     req.session.user.must_change_password = 0;
 
-                    res.json({ message: 'Contraseña cambiada exitosamente' });
+                    req.session.save((err) => {
+                        if (err) console.error('Session save error after password change:', err);
+                        res.json({ message: 'Contraseña cambiada exitosamente' });
+                    });
                 }
             );
         });

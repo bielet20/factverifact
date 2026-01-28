@@ -23,6 +23,10 @@ function requireAuth(req, res, next) {
     if (req.session && req.session.user) {
         next();
     } else {
+        console.warn(`[Auth Warning] Unauthorized access attempt: ${req.method} ${req.url}`);
+        console.warn(`[Auth Warning] Session ID: ${req.sessionID || 'None'}`);
+        console.warn(`[Auth Warning] Has Session object: ${!!req.session}`);
+        console.warn(`[Auth Warning] Has User in Session: ${!!(req.session && req.session.user)}`);
         res.status(401).json({ error: 'No autorizado. Por favor, inicia sesión.' });
     }
 }
