@@ -19,49 +19,41 @@ app.set('trust proxy', true); // Trust all proxies in the chain
 
 // Session configuration
 app.use(session({
+    name: 'sid', // Nombre de cookie simple
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
-    resave: true, // Forzar resave para asegurar persistencia
-    saveUninitialized: true, // Cambiado a true temporalmente para asegurar que la cookie se emita
+    resave: true,
+    saveUninitialized: true,
     proxy: true,
     cookie: {
-        secure: false, // Forzar false para evitar problemas con HTTP en sslip.io/Coolify
+        secure: false, // Forzar false para HTTP/Production (sslip.io)
         httpOnly: true,
         sameSite: 'lax',
+        path: '/',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
 
-// CORS configuration - allow production domain
-const allowedOrigins = [
-    'http://localhost:3000',
-    'http://127.0.0.1:3000'
-];
-
-// Add production origin if available
-if (process.env.PRODUCTION_URL) {
-    allowedOrigins.push(process.env.PRODUCTION_URL);
-}
-
+// CORS configuration - simplify for production debugging
 app.use(cors({
     origin: function (origin, callback) {
-        // Allow requests with no origin (like mobile apps, curl, Postman)
-        if (!origin) return callback(null, true);
-
-        // In production, we trust the host header if it's a known pattern or if we are behind a proxy
-        if (process.env.NODE_ENV === 'production') {
-            return callback(null, true);
-        }
-
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            callback(new Error('Not allowed by CORS'));
-        }
+        // En producción, permitimos cualquier origen con credenciales
+        callback(null, true);
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Debugging Middleware - LOG ALL COOKIES
+app.use((req, res, next) => {
+    console.log(`[Request Log] ${req.method} ${req.url}`);
+    console.log(`[Request Log] Cookie Header: ${req.headers.cookie || 'NONE'}`);
+    if (req.session) {
+        console.log(`[Request Log] Session ID: ${req.sessionID}`);
+        console.log(`[Request Log] Auth User: ${req.session.user ? req.session.user.username : 'NONE'}`);
+    }
+    next();
+});
 
 // Debug session middleware (only in dev/debug)
 app.use((req, res, next) => {
