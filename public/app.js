@@ -932,174 +932,168 @@ document.addEventListener('DOMContentLoaded', async () => {
             timeout = setTimeout(later, wait);
         };
     }
+
+    // ============================================
+    // USER MANAGEMENT (Admin only)
+    // ============================================
+
+    // DOM Elements for Users
+    const toggleUserFormBtn = document.getElementById('toggleUserForm');
+    const cancelUserFormBtn = document.getElementById('cancelUserForm');
+    const userFormContainer = document.getElementById('userFormContainer');
+    const userForm = document.getElementById('userForm');
+    const usersTableBody = document.getElementById('usersTableBody');
+
+    // Event Listeners for Users
+    if (toggleUserFormBtn) {
+        toggleUserFormBtn.addEventListener('click', () => {
+            if (userFormContainer) userFormContainer.classList.toggle('hidden');
+        });
+    }
+
+    if (cancelUserFormBtn) {
+        cancelUserFormBtn.addEventListener('click', () => {
+            if (userFormContainer) userFormContainer.classList.add('hidden');
+            if (userForm) userForm.reset();
+        });
+    }
+
+    if (userForm) {
+        userForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await createUser();
+        });
+    }
+
+    // Load Users
+    async function loadUsers() {
+        try {
+            const response = await fetch('/api/users', { credentials: 'include' });
+            const result = await response.json();
+
+            if (result.message === 'success') {
+                renderUsersTable(result.data);
+            }
+        } catch (error) {
+            console.error('Error loading users:', error);
+        }
+    }
+
+    // Render Users Table
+    function renderUsersTable(users) {
+        if (!usersTableBody) return;
+        usersTableBody.innerHTML = '';
+
+        users.forEach(user => {
+            const row = document.createElement('tr');
+
+            const roleClass = `badge-${user.role}`;
+            const statusClass = user.is_active ? 'badge-active' : 'badge-inactive';
+            const statusText = user.is_active ? 'Activo' : 'Inactivo';
+
+            const lastLogin = user.last_login
+                ? new Date(user.last_login).toLocaleString('es-ES')
+                : 'Nunca';
+
+            // Check if user is protected (admin or root)
+            const isProtected = user.username === 'admin' || user.username === 'root';
+
+            row.innerHTML = `
+                <td>${user.username}${isProtected ? ' 🔒' : ''}</td>
+                <td>${user.full_name}</td>
+                <td>${user.email || '-'}</td>
+                <td><span class="badge-role ${roleClass}">${user.role}</span></td>
+                <td><span class="badge ${statusClass}">${statusText}</span></td>
+                <td>${lastLogin}</td>
+                <td>
+                    ${isProtected
+                    ? '<span class="text-muted" title="Usuario protegido del sistema">🔒 Protegido</span>'
+                    : `<button class="btn-delete" data-id="${user.id}" data-username="${user.username}">Desactivar</button>`}
+                </td>
+            `;
+
+            const deleteBtn = row.querySelector('.btn-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', () => deleteUser(user.id, user.username));
+            }
+
+            usersTableBody.appendChild(row);
+        });
+    }
+
+    // Create User
+    async function createUser() {
+        const usernameInput = document.getElementById('user_username');
+        const passwordInput = document.getElementById('user_password');
+        const fullNameInput = document.getElementById('user_full_name');
+        const emailInput = document.getElementById('user_email');
+        const roleInput = document.getElementById('user_role');
+
+        const userData = {
+            username: usernameInput.value,
+            password: passwordInput.value,
+            full_name: fullNameInput.value,
+            email: emailInput.value,
+            role: roleInput.value
+        };
+
+        try {
+            const response = await fetch('/api/users', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(userData),
+                credentials: 'include'
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showNotification('✅ Usuario creado exitosamente', 'success');
+                if (userForm) userForm.reset();
+                if (userFormContainer) userFormContainer.classList.add('hidden');
+                loadUsers();
+            } else {
+                showNotification('❌ ' + (result.error || 'Error al crear usuario'), 'error');
+            }
+        } catch (error) {
+            console.error('Error creating user:', error);
+            showNotification('❌ Error de conexión al crear usuario', 'error');
+        }
+    }
+
+    // Delete User
+    async function deleteUser(userId, username) {
+        // Use customConfirm instead of native confirm
+        const confirmed = await window.customConfirm(`¿Estás seguro de desactivar al usuario "${username}"?`);
+        if (!confirmed) return;
+
+        try {
+            const response = await fetch(`/api/users/${userId}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            const result = await response.json();
+
+            if (response.ok) {
+                showNotification('✅ Usuario desactivado exitosamente', 'success');
+                loadUsers();
+            } else {
+                showNotification('❌ ' + (result.error || 'Error al desactivar usuario'), 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            showNotification('❌ Error de conexión al desactivar usuario', 'error');
+        }
+    }
+
+    // Combined load logic for Users tab
+    const usersTab = document.querySelector('[data-tab="users"]');
+    if (usersTab) {
+        usersTab.addEventListener('click', () => {
+            if (window.currentUser && window.currentUser.role === 'admin') {
+                loadUsers();
+            }
+        });
+    }
 });
-
-// ============================================
-// LOGOUT FUNCTION
-// ============================================
-
-async function logout() {
-    try {
-        await fetch('/api/auth/logout', {
-            method: 'POST',
-            credentials: 'include'
-        });
-        window.location.href = '/login.html';
-    } catch (error) {
-        console.error('Logout error:', error);
-        window.location.href = '/login.html';
-    }
-}
-
-// ============================================
-// USER MANAGEMENT (Admin only)
-// ============================================
-
-// DOM Elements for Users
-const toggleUserFormBtn = document.getElementById('toggleUserForm');
-const cancelUserFormBtn = document.getElementById('cancelUserForm');
-const userFormContainer = document.getElementById('userFormContainer');
-const userForm = document.getElementById('userForm');
-const usersTableBody = document.getElementById('usersTableBody');
-
-// Event Listeners
-if (toggleUserFormBtn) {
-    toggleUserFormBtn.addEventListener('click', () => {
-        userFormContainer.classList.toggle('hidden');
-    });
-}
-
-if (cancelUserFormBtn) {
-    cancelUserFormBtn.addEventListener('click', () => {
-        userFormContainer.classList.add('hidden');
-        userForm.reset();
-    });
-}
-
-if (userForm) {
-    userForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        await createUser();
-    });
-}
-
-// Load Users
-async function loadUsers() {
-    try {
-        const response = await fetch('/api/users', { credentials: 'include' });
-        const result = await response.json();
-
-        if (result.message === 'success') {
-            renderUsersTable(result.data);
-        }
-    } catch (error) {
-        console.error('Error loading users:', error);
-    }
-}
-
-// Render Users Table
-function renderUsersTable(users) {
-    usersTableBody.innerHTML = '';
-
-    users.forEach(user => {
-        const row = document.createElement('tr');
-
-        const roleClass = `badge-${user.role}`;
-        const statusClass = user.is_active ? 'badge-active' : 'badge-inactive';
-        const statusText = user.is_active ? 'Activo' : 'Inactivo';
-
-        const lastLogin = user.last_login
-            ? new Date(user.last_login).toLocaleString('es-ES')
-            : 'Nunca';
-
-        // Check if user is protected (admin or root)
-        const isProtected = user.username === 'admin' || user.username === 'root';
-        const deleteButton = isProtected
-            ? '<span class="text-muted" title="Usuario protegido del sistema">🔒 Protegido</span>'
-            : `<button class="btn-delete" onclick="deleteUser(${user.id}, '${user.username}')">
-                   Desactivar
-               </button>`;
-
-        row.innerHTML = `
-            <td>${user.username}${isProtected ? ' 🔒' : ''}</td>
-            <td>${user.full_name}</td>
-            <td>${user.email || '-'}</td>
-            <td><span class="badge-role ${roleClass}">${user.role}</span></td>
-            <td><span class="badge ${statusClass}">${statusText}</span></td>
-            <td>${lastLogin}</td>
-            <td>${deleteButton}</td>
-        `;
-
-        usersTableBody.appendChild(row);
-    });
-}
-
-// Create User
-async function createUser() {
-    const userData = {
-        username: document.getElementById('user_username').value,
-        password: document.getElementById('user_password').value,
-        full_name: document.getElementById('user_full_name').value,
-        email: document.getElementById('user_email').value,
-        role: document.getElementById('user_role').value
-    };
-
-    try {
-        const response = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(userData),
-            credentials: 'include'
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert('Usuario creado exitosamente');
-            userForm.reset();
-            userFormContainer.classList.add('hidden');
-            loadUsers();
-        } else {
-            alert(result.error || 'Error al crear usuario');
-        }
-    } catch (error) {
-        console.error('Error creating user:', error);
-        alert('Error al crear usuario');
-    }
-}
-
-// Delete User
-async function deleteUser(userId, username) {
-    if (!confirm(`¿Estás seguro de desactivar al usuario "${username}"?`)) {
-        return;
-    }
-
-    try {
-        const response = await fetch(`/api/users/${userId}`, {
-            method: 'DELETE',
-            credentials: 'include'
-        });
-
-        const result = await response.json();
-
-        if (response.ok) {
-            alert('Usuario desactivado exitosamente');
-            loadUsers();
-        } else {
-            alert(result.error || 'Error al desactivar usuario');
-        }
-    } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Error al desactivar usuario');
-    }
-}
-
-// Load users when Users tab is opened
-const usersTabBtn = document.querySelector('[data-tab="users"]');
-if (usersTabBtn) {
-    usersTabBtn.addEventListener('click', () => {
-        if (currentUser && currentUser.role === 'admin') {
-            loadUsers();
-        }
-    });
-}
