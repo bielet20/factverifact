@@ -24,9 +24,11 @@ app.use(session({
     saveUninitialized: false,
     proxy: true, // Requerido para veracidad de req.secure tras proxies
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // Cambiado a variable estática
+        // Solo marcar como secure si estamos en producción Y hay HTTPS
+        // Si tienes problemas en Coolify sin HTTPS, esta configuración es más compatible
+        secure: process.env.NODE_ENV === 'production' && process.env.FORCE_HTTPS === 'true',
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
