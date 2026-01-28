@@ -265,6 +265,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             addInvoiceLine();
             updateTotals();
             setTodayDate();
+            // Trigger change to reload next invoice number
+            invoiceCompanySelect.dispatchEvent(new Event('change'));
         }
     });
 
@@ -311,6 +313,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 updateTotals();
                 setTodayDate();
                 loadInvoices();
+                // Trigger change to reload next invoice number
+                invoiceCompanySelect.dispatchEvent(new Event('change'));
             } else {
                 const errorData = await response.json();
                 showNotification('❌ Error: ' + (errorData.error || 'Error desconocido'), 'error');
@@ -613,8 +617,29 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (companies.length > 0 && !activeCompanySelect.value) {
             activeCompanySelect.value = companies[0].id;
             invoiceCompanySelect.value = companies[0].id;
+            // Trigger change to load first company's next invoice number
+            invoiceCompanySelect.dispatchEvent(new Event('change'));
         }
     }
+
+    // Handle company change in invoice form to suggest next invoice number
+    invoiceCompanySelect.addEventListener('change', async () => {
+        const companyId = invoiceCompanySelect.value;
+        if (!companyId) return;
+
+        try {
+            const response = await fetch(`/api/companies/${companyId}/next-invoice-number`, {
+                credentials: 'include'
+            });
+            const result = await response.json();
+
+            if (response.ok) {
+                document.getElementById('invoice_number').value = result.next_invoice_number;
+            }
+        } catch (error) {
+            console.error('Error fetching next invoice number:', error);
+        }
+    });
 
     async function loadArticles(searchTerm = '') {
         try {

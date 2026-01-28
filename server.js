@@ -493,6 +493,44 @@ app.put('/api/users/:id', requireAuth, requireRole('admin'), async (req, res) =>
     );
 });
 
+// Get next invoice number for a company (suggestion)
+app.get('/api/companies/:id/next-invoice-number', requireAuth, async (req, res) => {
+    const companyId = req.params.id;
+
+    try {
+        const company = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM companies WHERE id = ?', [companyId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!company) {
+            return res.status(404).json({ error: 'Empresa no encontrada' });
+        }
+
+        const nextSequence = (company.last_invoice_sequence || 0) + 1;
+        const currentYear = new Date().getFullYear();
+        const paddedSequence = String(nextSequence).padStart(3, '0');
+
+        let nextNumber;
+        if (company.verifactu_enabled) {
+            nextNumber = `VF-${currentYear}-${paddedSequence}`;
+        } else {
+            nextNumber = `F${currentYear}-${paddedSequence}`;
+        }
+
+        res.json({
+            next_invoice_number: nextNumber,
+            sequence: nextSequence,
+            year: currentYear
+        });
+    } catch (error) {
+        console.error('Error calculating next invoice number:', error);
+        res.status(500).json({ error: 'Error al calcular el siguiente número de factura' });
+    }
+});
+
 // Delete/deactivate user
 app.delete('/api/users/:id', requireAuth, requireRole('admin'), (req, res) => {
     const userId = req.params.id;
