@@ -307,6 +307,12 @@ header {
     background-color: #dc2626;
 }
 
+.text-muted {
+    color: #94a3b8;
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
 @media (max-width: 768px) {
     header {
         flex-direction: column;

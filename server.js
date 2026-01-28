@@ -459,19 +459,35 @@ app.delete('/api/users/:id', requireAuth, requireRole('admin'), (req, res) => {
         return res.status(400).json({ error: 'No puedes eliminar tu propio usuario' });
     }
 
-    db.run(
-        'UPDATE users SET is_active = 0 WHERE id = ?',
-        [userId],
-        function (err) {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            if (this.changes === 0) {
-                return res.status(404).json({ error: 'Usuario no encontrado' });
-            }
-            res.json({ message: 'Usuario desactivado exitosamente' });
+    // Check if trying to delete a protected user (admin or root)
+    db.get('SELECT username FROM users WHERE id = ?', [userId], (err, user) => {
+        if (err) {
+            return res.status(500).json({ error: err.message });
         }
-    );
+
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
+        // Protect admin and root users from deletion
+        if (user.username === 'admin' || user.username === 'root') {
+            return res.status(403).json({
+                error: 'No se puede eliminar el usuario administrador principal'
+            });
+        }
+
+        // Proceed with deactivation
+        db.run(
+            'UPDATE users SET is_active = 0 WHERE id = ?',
+            [userId],
+            function (err) {
+                if (err) {
+                    return res.status(500).json({ error: err.message });
+                }
+                res.json({ message: 'Usuario desactivado exitosamente' });
+            }
+        );
+    });
 });
 
 // ============================================

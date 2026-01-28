@@ -155,7 +155,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/companies', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -213,7 +214,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/articles', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -281,7 +283,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const response = await fetch('/api/invoices', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+                body: JSON.stringify(formData),
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -550,7 +553,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadCompanies() {
         try {
-            const response = await fetch('/api/companies');
+            const response = await fetch('/api/companies', { credentials: 'include' });
             const result = await response.json();
 
             if (result.message === 'success') {
@@ -590,7 +593,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 url += `?search=${encodeURIComponent(searchTerm)}`;
             }
 
-            const response = await fetch(url);
+            const response = await fetch(url, { credentials: 'include' });
             const result = await response.json();
 
             if (result.message === 'success') {
@@ -630,7 +633,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         try {
             const response = await fetch(`/api/articles/${id}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                credentials: 'include'
             });
 
             if (response.ok) {
@@ -667,7 +671,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             const url = `/api/invoices${params.toString() ? '?' + params.toString() : ''}`;
-            const response = await fetch(url);
+            const response = await fetch(url, { credentials: 'include' });
             const result = await response.json();
 
             if (result.message === 'success') {
@@ -729,7 +733,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             button.disabled = true;
 
             // Fetch the PDF
-            const response = await fetch(`/api/invoices/${invoiceId}/pdf`);
+            const response = await fetch(`/api/invoices/${invoiceId}/pdf`, { credentials: 'include' });
 
             if (!response.ok) {
                 throw new Error(`Error ${response.status}: ${response.statusText}`);
@@ -953,18 +957,22 @@ function renderUsersTable(users) {
             ? new Date(user.last_login).toLocaleString('es-ES')
             : 'Nunca';
 
+        // Check if user is protected (admin or root)
+        const isProtected = user.username === 'admin' || user.username === 'root';
+        const deleteButton = isProtected
+            ? '<span class="text-muted" title="Usuario protegido del sistema">🔒 Protegido</span>'
+            : `<button class="btn-delete" onclick="deleteUser(${user.id}, '${user.username}')">
+                   Desactivar
+               </button>`;
+
         row.innerHTML = `
-            <td>${user.username}</td>
+            <td>${user.username}${isProtected ? ' 🔒' : ''}</td>
             <td>${user.full_name}</td>
             <td>${user.email || '-'}</td>
             <td><span class="badge-role ${roleClass}">${user.role}</span></td>
             <td><span class="badge ${statusClass}">${statusText}</span></td>
             <td>${lastLogin}</td>
-            <td>
-                <button class="btn-delete" onclick="deleteUser(${user.id}, '${user.username}')">
-                    Desactivar
-                </button>
-            </td>
+            <td>${deleteButton}</td>
         `;
 
         usersTableBody.appendChild(row);
