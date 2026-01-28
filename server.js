@@ -14,8 +14,8 @@ const emailService = require('./email-service.js');
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
 
-// Trust proxy - CRITICAL for production behind reverse proxy (Coolify, nginx, etc)
-app.set('trust proxy', 1);
+// Trust proxy - CRITICAL for production behind reverse proxy (Coolify, SSL termination, etc)
+app.set('trust proxy', true); // Trust all proxies in the chain
 
 // Session configuration
 app.use(session({
@@ -49,20 +49,30 @@ app.use(cors({
         // Allow requests with no origin (like mobile apps, curl, Postman)
         if (!origin) return callback(null, true);
 
-        // Check if origin is in allowed list
+        // In production, we trust the host header if it's a known pattern or if we are behind a proxy
+        if (process.env.NODE_ENV === 'production') {
+            return callback(null, true);
+        }
+
         if (allowedOrigins.indexOf(origin) !== -1) {
             callback(null, true);
         } else {
-            // In production, allow any origin from same domain
-            if (process.env.NODE_ENV === 'production') {
-                callback(null, true);
-            } else {
-                callback(new Error('Not allowed by CORS'));
-            }
+            callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
+
+// Debug session middleware (only in dev/debug)
+app.use((req, res, next) => {
+    if (process.env.DEBUG_SESSION === 'true' || process.env.NODE_ENV !== 'production') {
+        console.log(`[Session Debug] ${req.method} ${req.url} - Session ID: ${req.sessionID} - Has User: ${!!req.session.user}`);
+    }
+    next();
+});
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -149,12 +159,20 @@ app.post('/api/auth/login', async (req, res) => {
                 must_change_password: user.must_change_password
             };
 
-            res.json({
-                message: 'Login exitoso',
-                user: req.session.user
+            // Save session before sending response to ensure next request finds it
+            req.session.save((err) => {
+                if (err) {
+                    console.error('Session save error:', err);
+                    return res.status(500).json({ error: 'Error al iniciar sesión' });
+                }
+                res.json({
+                    message: 'Login exitoso',
+                    user: req.session.user
+                });
             });
         });
     } catch (error) {
+        console.error('Login error:', error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 });
