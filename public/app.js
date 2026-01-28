@@ -54,37 +54,38 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Check authentication
     // Check authentication - try localStorage first, then session
+    // Check authentication
     async function checkAuth() {
-        // First, try to get user from localStorage
-        const storedUser = localStorage.getItem('user');
-        if (storedUser) {
-            try {
-                window.currentUser = JSON.parse(storedUser);
-                initializeUserUI();
-                return true;
-            } catch (e) {
-                console.error('Error parsing stored user:', e);
-                localStorage.removeItem('user');
-            }
-        }
-
-        // If no localStorage, try session
         try {
             const response = await fetch('/api/auth/session', { credentials: 'include' });
             if (response.ok) {
                 const data = await response.json();
                 window.currentUser = data.user;
-                // Save to localStorage for future page loads
+                // Update localStorage with fresh data
                 localStorage.setItem('user', JSON.stringify(window.currentUser));
                 initializeUserUI();
                 return true;
+            } else {
+                // If session is invalid on server, clear localStorage
+                localStorage.removeItem('user');
+                window.currentUser = null;
+                return false;
             }
         } catch (error) {
             console.error('Session check failed:', error);
+            // Fallback to localStorage ONLY if network fails, but handle carefully
+            const storedUser = localStorage.getItem('user');
+            if (storedUser) {
+                try {
+                    window.currentUser = JSON.parse(storedUser);
+                    initializeUserUI();
+                    return true;
+                } catch (e) {
+                    localStorage.removeItem('user');
+                }
+            }
+            return false;
         }
-
-        // No valid auth found
-        return false;
     }
 
     // Initialize user UI
@@ -106,13 +107,27 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
     }
 
-    // Initialize
-    checkAuth(); // Check authentication on page load
-    loadCompanies();
-    loadArticles();
-    loadInvoices();
-    setTodayDate();
-    addInvoiceLine(); // Add first line by default
+    // Initialize app after checking auth
+    async function initApp() {
+        const isLoggedIn = await checkAuth();
+        if (!isLoggedIn) {
+            window.location.href = '/login.html';
+            return;
+        }
+
+        // Load data sequentially
+        await Promise.all([
+            loadCompanies(),
+            loadArticles(),
+            loadInvoices()
+        ]);
+
+        setTodayDate();
+        addInvoiceLine(); // Add first line by default
+    }
+
+    // Run initialization
+    initApp();
 
     // Tab Navigation
     tabs.forEach(tab => {

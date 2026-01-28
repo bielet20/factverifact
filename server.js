@@ -22,10 +22,11 @@ app.use(session({
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-this-in-production',
     resave: false,
     saveUninitialized: false,
+    proxy: true, // Requerido para veracidad de req.secure tras proxies
     cookie: {
-        secure: process.env.NODE_ENV === 'production', // true in production with HTTPS
+        secure: process.env.NODE_ENV === 'production', // Cambiado a variable estática
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // 'none' required for HTTPS
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
 }));
