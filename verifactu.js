@@ -1,4 +1,6 @@
 const forge = require('node-forge');
+const crypto = require('crypto');
+const QRCode = require('qrcode');
 
 /**
  * Veri*Factu Utility Module
