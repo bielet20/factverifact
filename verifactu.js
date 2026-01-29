@@ -229,6 +229,19 @@ function logAuditEntry(db, invoiceId, action, details = {}) {
     });
 }
 
+/**
+ * Format invoice number based on sequence and Veri*Factu status
+ * @param {number} sequence - The sequence number
+ * @param {boolean} verifactuEnabled - Whether Veri*Factu is enabled
+ * @returns {string} - Formatted invoice number
+ */
+function formatInvoiceNumber(sequence, verifactuEnabled) {
+    const currentYear = new Date().getFullYear();
+    const paddedSequence = String(sequence).padStart(3, '0');
+    const prefix = verifactuEnabled ? 'VF' : 'F';
+    return `${prefix}${currentYear}-${paddedSequence}`;
+}
+
 module.exports = {
     generateInvoiceHash,
     generateVerifactuSignature,
@@ -237,5 +250,6 @@ module.exports = {
     getNextInvoiceSequence,
     updateCompanySequence,
     getPreviousInvoiceHash,
-    logAuditEntry
+    logAuditEntry,
+    formatInvoiceNumber
 };

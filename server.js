@@ -510,19 +510,30 @@ app.get('/api/companies/:id/next-invoice-number', requireAuth, async (req, res) 
         }
 
         const nextSequence = (company.last_invoice_sequence || 0) + 1;
-        const currentYear = new Date().getFullYear();
-        const paddedSequence = String(nextSequence).padStart(3, '0');
+        let finalSequence = nextSequence;
+        let nextNumber = verifactu.formatInvoiceNumber(finalSequence, company.verifactu_enabled);
 
-        let nextNumber;
-        if (company.verifactu_enabled) {
-            nextNumber = `VF-${currentYear}-${paddedSequence}`;
-        } else {
-            nextNumber = `F${currentYear}-${paddedSequence}`;
+        // Check if this number is already used by a draft or other invoice
+        let exists = true;
+        while (exists) {
+            const check = await new Promise((resolve, reject) => {
+                db.get('SELECT id FROM invoices WHERE company_id = ? AND invoice_number = ?', [companyId, nextNumber], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+            });
+
+            if (check) {
+                finalSequence++;
+                nextNumber = verifactu.formatInvoiceNumber(finalSequence, company.verifactu_enabled);
+            } else {
+                exists = false;
+            }
         }
 
         res.json({
             next_invoice_number: nextNumber,
-            sequence: nextSequence,
+            sequence: finalSequence,
             year: currentYear
         });
     } catch (error) {
@@ -1069,14 +1080,31 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
             return;
         }
 
+        // Check if invoice number already exists for this company
+        const existingInvoice = await new Promise((resolve, reject) => {
+            db.get('SELECT id FROM invoices WHERE company_id = ? AND invoice_number = ?',
+                [req.body.company_id, req.body.invoice_number], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+        });
+
+        if (existingInvoice) {
+            return res.status(400).json({ error: `El número de factura ${req.body.invoice_number} ya existe para esta empresa.` });
+        }
+
         // Check status (default to draft if not specified, unless explicit finalize action)
         const status = req.body.status || 'draft';
         const isFinal = status === 'final';
 
         // Get next sequence number ONLY if finalizing
         let invoiceSequence = null;
+        let invoiceNumber = req.body.invoice_number;
+
         if (isFinal) {
             invoiceSequence = await verifactu.getNextInvoiceSequence(db, req.body.company_id);
+            // Redetermine invoice number based on sequence to ensure correlation
+            invoiceNumber = verifactu.formatInvoiceNumber(invoiceSequence, company.verifactu_enabled);
         }
 
         // Get previous hash for chaining (if Veri*Factu enabled AND finalizing)
@@ -1088,7 +1116,7 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
         var invoiceData = {
             company_id: req.body.company_id,
             client_id: req.body.client_id || null,
-            invoice_number: req.body.invoice_number,
+            invoice_number: invoiceNumber,
             invoice_sequence: invoiceSequence,
             date: req.body.date,
             client_name: req.body.client_name,
@@ -1593,6 +1621,20 @@ app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
 
         // Logic similar to CREATE but only for finalization components
         const invoiceSequence = await verifactu.getNextInvoiceSequence(db, invoice.company_id);
+        const finalInvoiceNumber = verifactu.formatInvoiceNumber(invoiceSequence, company.verifactu_enabled);
+
+        // Check if the NEW finalized number already exists (unlikely but safe)
+        const existingFinal = await new Promise((resolve, reject) => {
+            db.get('SELECT id FROM invoices WHERE company_id = ? AND invoice_number = ? AND id != ?',
+                [invoice.company_id, finalInvoiceNumber, invoiceId], (err, row) => {
+                    if (err) reject(err);
+                    else resolve(row);
+                });
+        });
+
+        if (existingFinal) {
+            return res.status(400).json({ error: `El número de factura final ${finalInvoiceNumber} ya existe.` });
+        }
 
         let previousHash = null;
         if (company.verifactu_enabled) {
@@ -1602,7 +1644,7 @@ app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
         // Prepare data for hashing (need to reconstruct full object)
         const invoiceData = {
             company_id: invoice.company_id,
-            invoice_number: invoice.invoice_number,
+            invoice_number: finalInvoiceNumber,
             invoice_sequence: invoiceSequence,
             date: invoice.date,
             subtotal: invoice.subtotal,
@@ -1631,11 +1673,12 @@ app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
         // Update invoice with final data
         const updateSql = `UPDATE invoices SET 
             status = 'final', finalized_at = ?, invoice_sequence = ?, 
-            previous_hash = ?, current_hash = ?, qr_code = ?, verifactu_signature = ?
+            previous_hash = ?, current_hash = ?, qr_code = ?, verifactu_signature = ?,
+            invoice_number = ?
             WHERE id = ?`;
 
         const finalizedAt = new Date().toISOString();
-        const params = [finalizedAt, invoiceSequence, previousHash, currentHash, qrCode, verifactuSignature, invoiceId];
+        const params = [finalizedAt, invoiceSequence, previousHash, currentHash, qrCode, verifactuSignature, finalInvoiceNumber, invoiceId];
 
         await new Promise((resolve, reject) => {
             db.run(updateSql, params, function (err) {
