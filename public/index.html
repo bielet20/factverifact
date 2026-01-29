@@ -445,6 +445,17 @@
                                         <label for="verifactu_software_id">ID Software (opcional)</label>
                                         <input type="text" id="verifactu_software_id" placeholder="SYS-FACT-001">
                                     </div>
+                                    <div class="form-group">
+                                        <label for="verifactu_certificate_file">Certificado Digital (.p12) *</label>
+                                        <input type="file" id="verifactu_certificate_file" accept=".p12">
+                                        <small id="certificate_status"
+                                            style="display:block; margin-top:5px; color:#666;"></small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="verifactu_certificate_password">Contraseña del Certificado *</label>
+                                        <input type="password" id="verifactu_certificate_password"
+                                            placeholder="••••••••">
+                                    </div>
                                     <div class="alert-warning">
                                         <strong>⚠️ Importante:</strong> Una vez habilitado Veri*Factu, las facturas no
                                         podrán

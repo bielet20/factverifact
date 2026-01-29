@@ -623,10 +623,12 @@ app.post('/api/companies', requireAuth, (req, res) => {
         email: req.body.email || '',
         bank_iban: req.body.bank_iban || '',
         verifactu_enabled: req.body.verifactu_enabled || 0,
-        verifactu_software_id: req.body.verifactu_software_id || null
+        verifactu_software_id: req.body.verifactu_software_id || null,
+        verifactu_certificate: req.body.verifactu_certificate || null,
+        verifactu_certificate_password: req.body.verifactu_certificate_password || null
     }
-    var sql = 'INSERT INTO companies (company_name, cif, address, phone, email, bank_iban, verifactu_enabled, verifactu_software_id) VALUES (?,?,?,?,?,?,?,?)'
-    var params = [data.company_name, data.cif, data.address, data.phone, data.email, data.bank_iban, data.verifactu_enabled, data.verifactu_software_id]
+    var sql = 'INSERT INTO companies (company_name, cif, address, phone, email, bank_iban, verifactu_enabled, verifactu_software_id, verifactu_certificate, verifactu_certificate_password) VALUES (?,?,?,?,?,?,?,?,?,?)'
+    var params = [data.company_name, data.cif, data.address, data.phone, data.email, data.bank_iban, data.verifactu_enabled, data.verifactu_software_id, data.verifactu_certificate, data.verifactu_certificate_password]
     db.run(sql, params, function (err, result) {
         if (err) {
             res.status(400).json({ "error": err.message })
@@ -666,7 +668,9 @@ app.put('/api/companies/:id', requireAuth, (req, res) => {
         email,
         bank_iban,
         verifactu_enabled,
-        verifactu_software_id
+        verifactu_software_id,
+        verifactu_certificate,
+        verifactu_certificate_password
     } = req.body;
 
     if (!company_name || !cif) {
@@ -681,7 +685,9 @@ app.put('/api/companies/:id', requireAuth, (req, res) => {
                 email = ?, 
                 bank_iban = ?, 
                 verifactu_enabled = ?, 
-                verifactu_software_id = ? 
+                verifactu_software_id = ?,
+                verifactu_certificate = ?,
+                verifactu_certificate_password = ?
                 WHERE id = ?`;
 
     const params = [
@@ -693,6 +699,8 @@ app.put('/api/companies/:id', requireAuth, (req, res) => {
         bank_iban || '',
         verifactu_enabled || 0,
         verifactu_software_id || null,
+        verifactu_certificate || null,
+        verifactu_certificate_password || null,
         companyId
     ];
 

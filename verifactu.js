@@ -1,5 +1,4 @@
-const crypto = require('crypto');
-const QRCode = require('qrcode');
+const forge = require('node-forge');
 
 /**
  * Veri*Factu Utility Module
@@ -17,7 +16,7 @@ function generateInvoiceHash(invoiceData) {
         invoice_number: invoiceData.invoice_number,
         invoice_sequence: invoiceData.invoice_sequence,
         date: invoiceData.date,
-        client_cif: invoiceData.client_cif,
+        client_cif: invoiceData.client_cif || '',
         subtotal: Number((invoiceData.subtotal || 0).toFixed(2)),
         total_vat: Number((invoiceData.total_vat || 0).toFixed(2)),
         total: Number((invoiceData.total || 0).toFixed(2)),
@@ -30,13 +29,59 @@ function generateInvoiceHash(invoiceData) {
 }
 
 /**
- * Generate Veri*Factu signature (simplified version)
- * In production, this should use proper cryptographic signing
+ * Sign a hash using a P12 certificate
+ * @param {string} hash - SHA-256 hash to sign
+ * @param {string} p12Base64 - Base64 encoded P12 file
+ * @param {string} password - Password for the P12 file
+ * @returns {string} - Base64 encoded signature
+ */
+function signWithCertificate(hash, p12Base64, password) {
+    try {
+        const p12Der = forge.util.decode64(p12Base64);
+        const p12Asn1 = forge.asn1.fromDer(p12Der);
+        const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+
+        // Find the private key
+        let privateKey;
+        for (let i = 0; i < p12.safeContents.length; i++) {
+            const safeContents = p12.safeContents[i];
+            for (let j = 0; j < safeContents.safeBags.length; j++) {
+                const safeBag = safeContents.safeBags[j];
+                if (safeBag.key) {
+                    privateKey = safeBag.key;
+                    break;
+                }
+            }
+            if (privateKey) break;
+        }
+
+        if (!privateKey) {
+            throw new Error('No se encontró la clave privada en el certificado');
+        }
+
+        // Create RSA signature
+        const md = forge.md.sha256.create();
+        md.update(hash, 'utf8');
+        const signature = privateKey.sign(md);
+        return forge.util.encode64(signature);
+    } catch (error) {
+        console.error('Error signing with certificate:', error.message);
+        throw new Error('Error al firmar con el certificado: ' + error.message);
+    }
+}
+
+/**
+ * Generate Veri*Factu signature
  * @param {string} hash - Invoice hash
- * @param {Object} companyData - Company data
+ * @param {Object} companyData - Company data including certificate
  * @returns {string} - Digital signature
  */
 function generateVerifactuSignature(hash, companyData) {
+    if (companyData.verifactu_certificate && companyData.verifactu_certificate_password) {
+        return signWithCertificate(hash, companyData.verifactu_certificate, companyData.verifactu_certificate_password);
+    }
+
+    // Fallback if no certificate is configured (for testing or backwards compatibility)
     const signatureData = {
         hash: hash,
         cif: companyData.cif,

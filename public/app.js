@@ -165,7 +165,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             email: document.getElementById('company_email').value,
             bank_iban: document.getElementById('company_bank_iban').value,
             verifactu_enabled: document.getElementById('verifactu_enabled')?.checked ? 1 : 0,
-            verifactu_software_id: document.getElementById('verifactu_software_id')?.value || null
+            verifactu_software_id: document.getElementById('verifactu_software_id')?.value || null,
+            verifactu_certificate: window.certBase64 || null,
+            verifactu_certificate_password: document.getElementById('verifactu_certificate_password')?.value || null
         };
 
         try {
@@ -187,6 +189,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
                 companyForm.reset();
                 document.getElementById('company_id_edit').value = '';
+                window.certBase64 = null;
+                document.getElementById('certificate_status').textContent = '';
                 companyFormContainer.classList.add('hidden');
                 loadCompanies();
                 showNotification('✅ Empresa guardada correctamente', 'success');
@@ -215,6 +219,30 @@ document.addEventListener('DOMContentLoaded', async () => {
                 verifactuDetails.classList.remove('hidden');
             } else {
                 verifactuDetails.classList.add('hidden');
+            }
+        });
+    }
+
+    const certFileInput = document.getElementById('verifactu_certificate_file');
+    const certStatus = document.getElementById('certificate_status');
+
+    if (certFileInput) {
+        certFileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const binary = event.target.result;
+                    window.certBase64 = btoa(
+                        new Uint8Array(binary)
+                            .reduce((data, byte) => data + String.fromCharCode(byte), '')
+                    );
+                    if (certStatus) {
+                        certStatus.textContent = '✅ Certificado seleccionado: ' + file.name;
+                        certStatus.style.color = 'green';
+                    }
+                };
+                reader.readAsArrayBuffer(file);
             }
         });
     }
@@ -1039,6 +1067,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         document.getElementById('verifactu_software_id').value = company.verifactu_software_id || '';
+        document.getElementById('verifactu_certificate_password').value = company.verifactu_certificate_password || '';
+
+        window.certBase64 = company.verifactu_certificate || null;
+        const certStatus = document.getElementById('certificate_status');
+        if (certStatus) {
+            certStatus.textContent = company.verifactu_certificate ? '✅ Certificado cargado' : '';
+            certStatus.style.color = 'green';
+        }
 
         // Handle logo
         if (typeof setCompanyLogo === 'function') {

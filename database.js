@@ -36,7 +36,9 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                         { name: 'verifactu_enabled', def: 'INTEGER DEFAULT 0' },
                         { name: 'verifactu_software_id', def: 'TEXT' },
                         { name: 'verifactu_software_name', def: "TEXT DEFAULT 'Sistema Facturas v1.0'" },
-                        { name: 'last_invoice_sequence', def: 'INTEGER DEFAULT 0' }
+                        { name: 'last_invoice_sequence', def: 'INTEGER DEFAULT 0' },
+                        { name: 'verifactu_certificate', def: 'TEXT' },
+                        { name: 'verifactu_certificate_password', def: 'TEXT' }
                     ];
 
                     companyColumns.forEach(col => {
