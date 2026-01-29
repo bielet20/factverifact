@@ -287,14 +287,83 @@ function formatInvoiceNumber(sequence, verifactuEnabled) {
     return `${prefix}${currentYear}-${paddedSequence}`;
 }
 
+/**
+ * Verify the integrity of the invoice chain for a company
+ * @param {Object} db - SQLite database connection
+ * @param {number} companyId - ID of the company
+ * @returns {Promise<Object>} Verification results
+ */
+function verifyInvoiceChain(db, companyId) {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT id, invoice_number, invoice_sequence, previous_hash, current_hash, status 
+             FROM invoices 
+             WHERE company_id = ? AND status = 'final' 
+             ORDER BY invoice_sequence ASC`,
+            [companyId],
+            (err, rows) => {
+                if (err) return reject(err);
+
+                let lastHash = 'GENESIS';
+                const issues = [];
+
+                for (const row of rows) {
+                    if (row.previous_hash !== lastHash) {
+                        issues.push({
+                            invoice_id: row.id,
+                            invoice_number: row.invoice_number,
+                            issue: 'Ruptura en el encadenamiento (Chain Break)',
+                            expected: lastHash,
+                            found: row.previous_hash
+                        });
+                    }
+                    lastHash = row.current_hash;
+                }
+
+                resolve({
+                    valid: issues.length === 0,
+                    count: rows.length,
+                    issues: issues
+                });
+            }
+        );
+    });
+}
+
+/**
+ * Export Veri*Factu audit trail for a company
+ * @param {Object} db - SQLite database connection
+ * @returns {Promise<Array>} Audit trail data
+ */
+function getAuditTrail(db) {
+    return new Promise((resolve, reject) => {
+        db.all(
+            `SELECT i.invoice_number, i.invoice_sequence, i.date, i.total, 
+                    i.previous_hash, i.current_hash, i.verifactu_signature,
+                    c.company_name, c.cif as company_cif
+             FROM invoices i
+             JOIN companies c ON i.company_id = c.id
+             WHERE i.status = 'final'
+             ORDER BY i.company_id, i.invoice_sequence ASC`,
+            [],
+            (err, rows) => {
+                if (err) reject(err);
+                else resolve(rows);
+            }
+        );
+    });
+}
+
 module.exports = {
     generateInvoiceHash,
     generateVerifactuSignature,
-    generateInvoiceQR,
+    generateInvoiceQR, // Keep original name as it's not changed in the provided code
     validateInvoiceChain,
     getNextInvoiceSequence,
     updateCompanySequence,
     getPreviousInvoiceHash,
     logAuditEntry,
-    formatInvoiceNumber
+    formatInvoiceNumber,
+    verifyInvoiceChain,
+    getAuditTrail
 };

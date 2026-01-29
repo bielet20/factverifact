@@ -2022,9 +2022,20 @@ app.get('/api/reports/invoices/print', requireAuth, (req, res) => {
 // Create backup
 app.post('/api/backups/create', requireAuth, requireRole('admin'), async (req, res) => {
     try {
-        const backup = await backupManager.createBackup();
+        // 1. Verify DB Integrity
+        const isDbIntact = await backupManager.verifyDbIntegrity(db);
+        if (!isDbIntact) {
+            console.warn('⚠️ Database integrity issues detected before backup');
+        }
+
+        // 2. Get Veri*Factu Audit Trail
+        const auditTrail = await verifactu.getAuditTrail(db);
+
+        // 3. Create Backup with Audit
+        const backup = await backupManager.createBackup(auditTrail);
+
         res.json({
-            message: 'Backup creado exitosamente',
+            message: 'Backup creado exitosamente' + (isDbIntact ? '' : ' (con advertencias de integridad)'),
             backup
         });
     } catch (error) {
@@ -2104,6 +2115,33 @@ app.delete('/api/backups/:name', requireAuth, requireRole('admin'), async (req, 
     } catch (error) {
         console.error('Error deleting backup:', error);
         res.status(500).json({ error: 'Error al eliminar backup: ' + error.message });
+    }
+});
+
+// ============================================
+// VERI*FACTU COMPLIANCE ENDPOINTS
+// ============================================
+
+// Verify invoice chain integrity
+app.get('/api/verifactu/verify-chain/:companyId', requireAuth, async (req, res) => {
+    try {
+        const companyId = req.params.companyId;
+        const result = await verifactu.verifyInvoiceChain(db, companyId);
+        res.json(result);
+    } catch (error) {
+        console.error('Error verifying Veri*Factu chain:', error);
+        res.status(500).json({ error: 'Error al verificar cadena: ' + error.message });
+    }
+});
+
+// Download Audit Trail (Admin only)
+app.get('/api/verifactu/audit-trail', requireAuth, requireRole('admin'), async (req, res) => {
+    try {
+        const auditTrail = await verifactu.getAuditTrail(db);
+        res.json(auditTrail);
+    } catch (error) {
+        console.error('Error fetching audit trail:', error);
+        res.status(500).json({ error: 'Error al obtener registro de auditoría' });
     }
 });
 

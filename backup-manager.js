@@ -12,10 +12,11 @@ class BackupManager {
     }
 
     /**
-     * Create a complete backup (database + uploads)
+     * Create a complete backup (database + uploads + audit)
+     * @param {Array} auditTrail - Optional Veri*Factu audit trail data
      * @returns {Promise<Object>} Backup info
      */
-    async createBackup() {
+    async createBackup(auditTrail = null) {
         try {
             // Ensure backup directory exists
             await fs.mkdir(this.backupDir, { recursive: true });
@@ -27,10 +28,11 @@ class BackupManager {
 
             // Create metadata
             const metadata = {
-                version: '1.0',
+                version: '1.1',
                 timestamp: new Date().toISOString(),
                 database: path.basename(this.dbPath),
-                app_version: '1.0.0'
+                app_version: '1.0.0',
+                verifactu_audit_included: !!auditTrail
             };
 
             // Count files in uploads
@@ -52,7 +54,7 @@ class BackupManager {
             };
 
             // Create ZIP archive
-            await this.createZipArchive(backupPath, metadata);
+            await this.createZipArchive(backupPath, metadata, auditTrail);
 
             // Get backup file stats
             const stats = await fs.stat(backupPath);
@@ -74,9 +76,27 @@ class BackupManager {
     }
 
     /**
-     * Create ZIP archive with database and uploads
+     * Verify database integrity
+     * @param {Object} db - SQLite database connection
+     * @returns {Promise<boolean>}
      */
-    async createZipArchive(outputPath, metadata) {
+    async verifyDbIntegrity(db) {
+        return new Promise((resolve, reject) => {
+            db.get('PRAGMA integrity_check', (err, row) => {
+                if (err) reject(err);
+                else {
+                    const isValid = row.integrity_check === 'ok';
+                    if (!isValid) console.warn('⚠️ Database integrity check failed:', row.integrity_check);
+                    resolve(isValid);
+                }
+            });
+        });
+    }
+
+    /**
+     * Create ZIP archive with database, uploads and Veri*Factu audit
+     */
+    async createZipArchive(outputPath, metadata, auditTrail = null) {
         return new Promise((resolve, reject) => {
             const output = fsSync.createWriteStream(outputPath);
             const archive = archiver('zip', {
@@ -95,6 +115,11 @@ class BackupManager {
 
             // Add metadata
             archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
+
+            // Add Veri*Factu Audit
+            if (auditTrail) {
+                archive.append(JSON.stringify(auditTrail, null, 2), { name: 'verifactu_audit.json' });
+            }
 
             // Add database
             if (fsSync.existsSync(this.dbPath)) {
