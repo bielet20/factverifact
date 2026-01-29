@@ -1486,6 +1486,10 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
             invoice_number
         } = req.body;
 
+        if (!company_id) {
+            return res.status(400).json({ error: 'La empresa emisora es requerida' });
+        }
+
         const updateSql = `UPDATE invoices SET 
             date = ?, client_name = ?, client_cif = ?, client_address = ?, client_type = ?, 
             notes = ?, subtotal = ?, total_vat = ?, total = ?, client_id = ?, company_id = ?, invoice_number = ?
@@ -1578,6 +1582,7 @@ app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
 
         if (!invoice) return res.status(404).json({ error: 'Factura no encontrada' });
         if (invoice.status === 'final') return res.status(400).json({ error: 'La factura ya está finalizada' });
+        if (!invoice.company_id) return res.status(400).json({ error: 'La factura no tiene una empresa asociada' });
 
         const company = await new Promise((resolve, reject) => {
             db.get('SELECT * FROM companies WHERE id = ?', [invoice.company_id], (err, row) => {

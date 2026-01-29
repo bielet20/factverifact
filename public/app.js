@@ -481,10 +481,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             return;
         }
 
+        const companyId = parseInt(document.getElementById('invoice_company').value);
+        if (!companyId || isNaN(companyId)) {
+            showNotification('❌ Debes seleccionar una empresa emisora', 'error');
+            return;
+        }
+
         const totals = calculateTotals();
 
         let formData = {
-            company_id: parseInt(document.getElementById('invoice_company').value),
+            company_id: companyId,
             client_id: document.getElementById('client_selector')?.value || null,
             invoice_number: document.getElementById('invoice_number').value,
             date: document.getElementById('date').value,
