@@ -504,15 +504,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function submitInvoice(status) {
+        // 1. Validation: Issuer Company
+        const companyId = parseInt(document.getElementById('invoice_company').value);
+        if (!companyId || isNaN(companyId)) {
+            showNotification('❌ Debes seleccionar una empresa emisora', 'error');
+            return;
+        }
+
+        // 2. Validation: Client Data
+        const clientName = document.getElementById('client_name').value.trim();
+        const clientCif = document.getElementById('client_cif').value.trim();
+        if (!clientName || !clientCif) {
+            showNotification('❌ Debes completar los datos del cliente (Nombre y NIF/CIF)', 'error');
+            return;
+        }
+
+        // 3. Validation: At least one item
         if (invoiceItems.length === 0) {
             showNotification('❌ Debes añadir al menos una línea a la factura', 'error');
             return;
         }
 
-        const companyId = parseInt(document.getElementById('invoice_company').value);
-        if (!companyId || isNaN(companyId)) {
-            showNotification('❌ Debes seleccionar una empresa emisora', 'error');
-            return;
+        // 4. Validation: Each item must have description and price
+        for (let i = 0; i < invoiceItems.length; i++) {
+            const item = invoiceItems[i];
+            if (!item.description || !item.description.trim()) {
+                showNotification(`❌ La línea ${i + 1} no tiene una descripción válida`, 'error');
+                return;
+            }
+            if (item.unit_price <= 0) {
+                showNotification(`❌ La línea ${i + 1} ("${item.description}") debe tener un precio mayor a 0`, 'error');
+                return;
+            }
+            if (item.quantity <= 0) {
+                showNotification(`❌ La línea ${i + 1} ("${item.description}") debe tener una cantidad mayor a 0`, 'error');
+                return;
+            }
         }
 
         const totals = calculateTotals();

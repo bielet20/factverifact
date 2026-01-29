@@ -1068,6 +1068,25 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
     }
     if (!req.body.items || !Array.isArray(req.body.items) || req.body.items.length === 0) {
         errors.push("At least one invoice item is required");
+    } else {
+        // Validation for each item
+        req.body.items.forEach((item, index) => {
+            if (!item.description || !item.description.trim()) {
+                errors.push(`Línea ${index + 1}: La descripción es requerida`);
+            }
+            if (!item.unit_price || item.unit_price <= 0) {
+                errors.push(`Línea ${index + 1}: El precio unitario debe ser mayor a 0`);
+            }
+            if (!item.quantity || item.quantity <= 0) {
+                errors.push(`Línea ${index + 1}: La cantidad debe ser mayor a 0`);
+            }
+        });
+    }
+    if (!req.body.client_name || !req.body.client_name.trim()) {
+        errors.push("El nombre del cliente es requerido");
+    }
+    if (!req.body.client_cif || !req.body.client_cif.trim()) {
+        errors.push("El NIF/CIF del cliente es requerido");
     }
     if (errors.length) {
         res.status(400).json({ "error": errors.join(",") });
@@ -1524,6 +1543,31 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
 
         if (!company_id) {
             return res.status(400).json({ error: 'La empresa emisora es requerida' });
+        }
+
+        if (!client_name || !client_name.trim()) {
+            return res.status(400).json({ error: 'El nombre del cliente es requerido' });
+        }
+        if (!client_cif || !client_cif.trim()) {
+            return res.status(400).json({ error: 'El NIF/CIF del cliente es requerido' });
+        }
+
+        if (!items || !Array.isArray(items) || items.length === 0) {
+            return res.status(400).json({ error: 'Se requiere al menos una línea de factura' });
+        }
+
+        // Validate items
+        for (let i = 0; i < items.length; i++) {
+            const item = items[i];
+            if (!item.description || !item.description.trim()) {
+                return res.status(400).json({ error: `Línea ${i + 1}: La descripción es requerida` });
+            }
+            if (!item.unit_price || item.unit_price <= 0) {
+                return res.status(400).json({ error: `Línea ${i + 1}: El precio unitario debe ser mayor a 0` });
+            }
+            if (!item.quantity || item.quantity <= 0) {
+                return res.status(400).json({ error: `Línea ${i + 1}: La cantidad debe ser mayor a 0` });
+            }
         }
 
         const updateSql = `UPDATE invoices SET 
