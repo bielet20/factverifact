@@ -534,7 +534,7 @@ app.get('/api/companies/:id/next-invoice-number', requireAuth, async (req, res) 
         res.json({
             next_invoice_number: nextNumber,
             sequence: finalSequence,
-            year: currentYear
+            year: new Date().getFullYear()
         });
     } catch (error) {
         console.error('Error calculating next invoice number:', error);
