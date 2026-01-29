@@ -20,8 +20,8 @@ RUN apk add --no-cache \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
 
-# Instalar todas las dependencias (incluyendo devDependencies para nodemon)
-RUN npm install
+# Instalar dependencias de producción
+RUN npm ci --only=production
 
 # Copiar el resto de la aplicación
 COPY . .
@@ -36,5 +36,5 @@ EXPOSE 3000
 ENV NODE_ENV=production
 ENV PORT=3000
 
-# Comando para iniciar la aplicación inteligente
-CMD ["sh", "-c", "if [ \"$NODE_ENV\" = \"development\" ]; then npm run dev; else npm start; fi"]
+# Comando para iniciar la aplicación
+CMD ["node", "server.js"]
