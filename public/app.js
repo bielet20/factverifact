@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const totals = calculateTotals();
 
-        const formData = {
+        let formData = {
             company_id: parseInt(document.getElementById('invoice_company').value),
             client_id: document.getElementById('client_selector')?.value || null,
             invoice_number: document.getElementById('invoice_number').value,
@@ -528,7 +528,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     url = `/api/invoices/${currentEditingInvoiceId}/finalize`;
                     method = 'POST';
                     // Finalize endpoint doesn't need body, relies on saved state
-                    formData = {};
+                    formData = {}; // Empty body as endpoint uses saved state
                 } catch (err) {
                     showNotification('❌ ' + err.message, 'error');
                     return;

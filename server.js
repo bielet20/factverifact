@@ -1469,19 +1469,47 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
             return res.status(403).json({ error: 'No se puede editar una factura finalizada' });
         }
 
-        // Update fields
-        const { date, client_name, client_cif, client_address, client_type, notes, subtotal, total_vat, total, items, client_id, company_id, invoice_number } = req.body;
+        // Update fields with defaults to prevent database errors
+        const {
+            date,
+            client_name,
+            client_cif,
+            client_address = '',
+            client_type = 'particular',
+            notes = '',
+            subtotal = 0,
+            total_vat = 0,
+            total = 0,
+            items,
+            client_id = null,
+            company_id,
+            invoice_number
+        } = req.body;
 
         const updateSql = `UPDATE invoices SET 
             date = ?, client_name = ?, client_cif = ?, client_address = ?, client_type = ?, 
             notes = ?, subtotal = ?, total_vat = ?, total = ?, client_id = ?, company_id = ?, invoice_number = ?
             WHERE id = ?`;
 
-        const updateParams = [date, client_name, client_cif, client_address, client_type, notes, subtotal, total_vat, total, client_id || null, company_id, invoice_number, invoiceId];
+        const updateParams = [
+            date,
+            client_name,
+            client_cif,
+            client_address,
+            client_type,
+            notes,
+            subtotal,
+            total_vat,
+            total,
+            client_id,
+            company_id,
+            invoice_number,
+            invoiceId
+        ];
 
         await new Promise((resolve, reject) => {
             db.run(updateSql, updateParams, function (err) {
-                if (err) reject(err);
+                if (err) reject(new Error('Error al actualizar base: ' + err.message));
                 else resolve();
             });
         });
@@ -1489,7 +1517,7 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
         // Update items (delete all and recreate)
         await new Promise((resolve, reject) => {
             db.run('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId], (err) => {
-                if (err) reject(err);
+                if (err) reject(new Error('Error al limpiar ítems: ' + err.message));
                 else resolve();
             });
         });
@@ -1502,12 +1530,20 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
             for (let index = 0; index < items.length; index++) {
                 const item = items[index];
                 const itemParams = [
-                    invoiceId, item.article_id || null, item.description, item.quantity,
-                    item.unit_price, item.vat_rate, item.line_total, item.line_vat, item.line_total_with_vat, index
+                    invoiceId,
+                    item.article_id || null,
+                    item.description,
+                    item.quantity || 1,
+                    item.unit_price || 0,
+                    item.vat_rate || 0,
+                    item.line_total || 0,
+                    item.line_vat || 0,
+                    item.line_total_with_vat || 0,
+                    index
                 ];
                 await new Promise((resolve, reject) => {
                     db.run(itemSql, itemParams, (err) => {
-                        if (err) reject(err);
+                        if (err) reject(new Error(`Error al insertar ítem ${index}: ` + err.message));
                         else resolve();
                     });
                 });
@@ -1517,7 +1553,12 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
         res.json({ message: 'Factura actualizada correctamente' });
 
     } catch (error) {
-        console.error('Error updating invoice:', error);
+        console.error('Error updating invoice:', {
+            id: invoiceId,
+            error: error.message,
+            stack: error.stack,
+            body: req.body
+        });
         res.status(500).json({ error: error.message });
     }
 });
