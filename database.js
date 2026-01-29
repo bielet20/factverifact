@@ -30,6 +30,26 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                     console.error('Error creating companies table:', err);
                 } else {
                     console.log('Companies table ready.');
+                    // Ensure missing columns exist (for older installations)
+                    const companyColumns = [
+                        { name: 'logo', def: 'TEXT' },
+                        { name: 'verifactu_enabled', def: 'INTEGER DEFAULT 0' },
+                        { name: 'verifactu_software_id', def: 'TEXT' },
+                        { name: 'verifactu_software_name', def: "TEXT DEFAULT 'Sistema Facturas v1.0'" },
+                        { name: 'last_invoice_sequence', def: 'INTEGER DEFAULT 0' }
+                    ];
+
+                    companyColumns.forEach(col => {
+                        db.run(`ALTER TABLE companies ADD COLUMN ${col.name} ${col.def}`, (err) => {
+                            if (err) {
+                                if (!err.message.includes('duplicate column name')) {
+                                    console.error(`Error adding ${col.name} column to companies:`, err.message);
+                                }
+                            } else {
+                                console.log(`Added missing ${col.name} column to companies table.`);
+                            }
+                        });
+                    });
                 }
             });
 
@@ -87,6 +107,36 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                     console.error('Error creating invoices table:', err);
                 } else {
                     console.log('Invoices table ready.');
+                    // Ensure missing columns exist (for older installations)
+                    const columnsToAdd = [
+                        { name: 'client_id', def: 'INTEGER' },
+                        { name: 'status', def: "TEXT DEFAULT 'draft'" },
+                        { name: 'finalized_at', def: 'TEXT' },
+                        { name: 'invoice_sequence', def: 'INTEGER' },
+                        { name: 'previous_hash', def: 'TEXT' },
+                        { name: 'current_hash', def: 'TEXT' },
+                        { name: 'qr_code', def: 'TEXT' },
+                        { name: 'is_cancelled', def: 'INTEGER DEFAULT 0' },
+                        { name: 'cancellation_date', def: 'TEXT' },
+                        { name: 'cancellation_reason', def: 'TEXT' },
+                        { name: 'verifactu_signature', def: 'TEXT' }
+                    ];
+
+                    columnsToAdd.forEach(col => {
+                        db.run(`ALTER TABLE invoices ADD COLUMN ${col.name} ${col.def}`, (err) => {
+                            if (err) {
+                                if (!err.message.includes('duplicate column name')) {
+                                    console.error(`Error adding ${col.name} column to invoices:`, err.message);
+                                }
+                            } else {
+                                console.log(`Added missing ${col.name} column to invoices table.`);
+                                // Backfill status if needed
+                                if (col.name === 'status') {
+                                    db.run("UPDATE invoices SET status = 'final' WHERE status IS NULL OR status = ''");
+                                }
+                            }
+                        });
+                    });
                 }
             });
 
