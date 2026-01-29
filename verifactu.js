@@ -18,9 +18,9 @@ function generateInvoiceHash(invoiceData) {
         invoice_sequence: invoiceData.invoice_sequence,
         date: invoiceData.date,
         client_cif: invoiceData.client_cif,
-        subtotal: invoiceData.subtotal,
-        total_vat: invoiceData.total_vat,
-        total: invoiceData.total,
+        subtotal: Number((invoiceData.subtotal || 0).toFixed(2)),
+        total_vat: Number((invoiceData.total_vat || 0).toFixed(2)),
+        total: Number((invoiceData.total || 0).toFixed(2)),
         previous_hash: invoiceData.previous_hash || 'GENESIS',
         timestamp: new Date().toISOString()
     };

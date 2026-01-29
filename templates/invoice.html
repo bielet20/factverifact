@@ -219,10 +219,25 @@
             color: #555;
             text-align: justify;
         }
+
+        /* Draft indicator */
+        .draft-banner {
+            background-color: #fff3cd;
+            color: #856404;
+            padding: 10px;
+            text-align: center;
+            border: 1px solid #ffeeba;
+            margin-bottom: 20px;
+            font-weight: bold;
+            font-size: 14pt;
+        }
     </style>
 </head>
 
 <body>
+    {{#if (eq invoice.status 'draft')}}
+    <div class="draft-banner">BORRADOR - NO VÁLIDO FISCALMENTE</div>
+    {{/if}}
     <div class="header">
         <div class="header-left">
             {{#if company.logoBase64}}
@@ -326,13 +341,16 @@
     {{/if}}
 
     {{#if company.verifactu_enabled}}
-    <div style="margin-bottom: 15px; font-size: 7pt; color: #666;">
-        <strong>Veri*Factu:</strong> Factura certificada según RD 1007/2023<br>
+    <div
+        style="margin-top: 20px; margin-bottom: 15px; padding: 5px; border: 1px solid #0066cc; border-radius: 4px; font-size: 7pt; color: #333;">
+        <div style="color: #0066cc; font-weight: bold; font-size: 8pt; margin-bottom: 3px;">
+            ✓ Factura certificada Veri*Factu (RD 1007/2023)
+        </div>
         {{#if invoice.current_hash}}
-        Hash: {{invoice.current_hash}}<br>
+        <strong>Huella (Hash):</strong> {{invoice.current_hash}}<br>
         {{/if}}
         {{#if invoice.invoice_sequence}}
-        Secuencia: {{invoice.invoice_sequence}}
+        <strong>Nº Secuencia:</strong> {{invoice.invoice_sequence}}
         {{/if}}
     </div>
     {{/if}}

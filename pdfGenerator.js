@@ -20,6 +20,10 @@ handlebars.registerHelper('formatDate', function (dateString) {
     });
 });
 
+handlebars.registerHelper('eq', function (a, b) {
+    return a === b;
+});
+
 async function generateInvoicePDF(invoiceData, companyData) {
     try {
         // Read the HTML template

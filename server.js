@@ -1601,8 +1601,13 @@ app.post('/api/invoices/:id/finalize', requireAuth, async (req, res) => {
             invoice_sequence: invoiceSequence,
             date: invoice.date,
             subtotal: invoice.subtotal,
+            total_vat: invoice.total_vat,
             total: invoice.total,
+            client_name: invoice.client_name,
             client_cif: invoice.client_cif,
+            client_address: invoice.client_address,
+            client_type: invoice.client_type,
+            notes: invoice.notes,
             previous_hash: previousHash
         };
 
@@ -1651,7 +1656,31 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
 
     try {
         // Get invoice data with company info
-        const sql = `SELECT invoices.*, companies.* 
+        const sql = `SELECT 
+                        invoices.id as invoice_id,
+                        invoices.invoice_number,
+                        invoices.invoice_sequence,
+                        invoices.date,
+                        invoices.client_name,
+                        invoices.client_cif,
+                        invoices.client_address,
+                        invoices.client_type,
+                        invoices.notes,
+                        invoices.subtotal,
+                        invoices.total_vat,
+                        invoices.total,
+                        invoices.qr_code,
+                        invoices.current_hash,
+                        invoices.is_cancelled,
+                        invoices.status as invoice_status,
+                        companies.company_name,
+                        companies.cif as company_cif,
+                        companies.address as company_address,
+                        companies.phone as company_phone,
+                        companies.email as company_email,
+                        companies.bank_iban,
+                        companies.verifactu_enabled,
+                        companies.logo as company_logo
                      FROM invoices 
                      LEFT JOIN companies ON invoices.company_id = companies.id 
                      WHERE invoices.id = ?`;
@@ -1678,7 +1707,7 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
 
                 // Prepare invoice and company data
                 const invoiceData = {
-                    id: row.id,
+                    id: row.invoice_id,
                     invoice_number: row.invoice_number,
                     invoice_sequence: row.invoice_sequence,
                     date: row.date,
@@ -1693,18 +1722,19 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                     items: items,
                     qr_code: row.qr_code,
                     current_hash: row.current_hash,
-                    is_cancelled: row.is_cancelled
+                    is_cancelled: row.is_cancelled,
+                    status: row.invoice_status
                 };
 
                 const companyData = {
                     company_name: row.company_name,
-                    cif: row.cif,
-                    address: row.address,
-                    phone: row.phone,
-                    email: row.email,
+                    cif: row.company_cif,
+                    address: row.company_address,
+                    phone: row.company_phone,
+                    email: row.company_email,
                     bank_iban: row.bank_iban,
                     verifactu_enabled: row.verifactu_enabled,
-                    logo: row.logo  // Include logo path
+                    logo: row.company_logo
                 };
 
                 try {
