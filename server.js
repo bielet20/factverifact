@@ -467,30 +467,47 @@ app.post('/api/users', requireAuth, requireRole('admin'), async (req, res) => {
 
 // Update user
 app.put('/api/users/:id', requireAuth, requireRole('admin'), async (req, res) => {
-    const { full_name, email, role, is_active } = req.body;
+    const { username, full_name, email, role, is_active, password } = req.body;
     const userId = req.params.id;
 
-    if (!full_name || !role) {
-        return res.status(400).json({ error: 'Nombre completo y rol son requeridos' });
+    if (!username || !full_name || !role) {
+        return res.status(400).json({ error: 'Usuario, nombre completo y rol son requeridos' });
     }
 
     if (!['admin', 'user', 'viewer'].includes(role)) {
         return res.status(400).json({ error: 'Rol inválido' });
     }
 
-    db.run(
-        `UPDATE users SET full_name = ?, email = ?, role = ?, is_active = ? WHERE id = ?`,
-        [full_name, email || null, role, is_active !== undefined ? is_active : 1, userId],
-        function (err) {
+    try {
+        let sql = `UPDATE users SET username = ?, full_name = ?, email = ?, role = ?, is_active = ?`;
+        let params = [username, full_name, email || null, role, is_active !== undefined ? is_active : 1];
+
+        if (password && password.trim().length >= 6) {
+            const passwordHash = await hashPassword(password);
+            sql += `, password_hash = ?`;
+            params.push(passwordHash);
+        } else if (password && password.trim().length > 0) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+        }
+
+        sql += ` WHERE id = ?`;
+        params.push(userId);
+
+        db.run(sql, params, function (err) {
             if (err) {
+                if (err.message.includes('UNIQUE')) {
+                    return res.status(400).json({ error: 'El nombre de usuario ya existe' });
+                }
                 return res.status(500).json({ error: err.message });
             }
             if (this.changes === 0) {
                 return res.status(404).json({ error: 'Usuario no encontrado' });
             }
             res.json({ message: 'Usuario actualizado exitosamente' });
-        }
-    );
+        });
+    } catch (error) {
+        res.status(500).json({ error: 'Error del servidor' });
+    }
 });
 
 // Get next invoice number for a company (suggestion)

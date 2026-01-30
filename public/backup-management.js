@@ -14,7 +14,10 @@ if (createBackupBtn) {
 }
 
 if (restoreBackupBtn) {
-    restoreBackupBtn.addEventListener('click', restoreBackup);
+    restoreBackupBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        restoreBackup();
+    });
 }
 
 // Load backups when tab is opened
@@ -42,14 +45,14 @@ async function createBackup() {
         const result = await response.json();
 
         if (response.ok) {
-            alert('✅ Backup creado exitosamente: ' + result.backup.name);
+            window.showNotification('✅ Backup creado exitosamente: ' + result.backup.name, 'success');
             loadBackups(); // Reload list
         } else {
-            alert('Error: ' + result.error);
+            window.showNotification('Error: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Error creating backup:', error);
-        alert('Error al crear backup');
+        window.showNotification('Error al crear backup', 'error');
     } finally {
         createBackupBtn.disabled = false;
         createBackupBtn.textContent = '+ Crear Backup';
@@ -125,22 +128,18 @@ async function restoreBackup() {
     const file = backupFileInput.files[0];
 
     if (!file) {
-        alert('Por favor selecciona un archivo de backup');
+        window.showNotification('Por favor selecciona un archivo de backup', 'warning');
         return;
     }
 
     if (!file.name.endsWith('.zip')) {
-        alert('El archivo debe ser un ZIP');
+        window.showNotification('El archivo debe ser un ZIP', 'error');
         return;
     }
 
-    const confirmed = confirm(
-        '⚠️ ADVERTENCIA CRÍTICA ⚠️\n\n' +
-        'Esta acción sobrescribirá TODOS los datos actuales:\n' +
-        '- Base de datos completa\n' +
-        '- Todos los archivos subidos\n\n' +
-        'Se creará un backup de seguridad automáticamente antes de restaurar.\n\n' +
-        '¿Estás SEGURO de que deseas continuar?'
+    const confirmed = await window.customConfirm(
+        'Esta acción sobrescribirá TODOS los datos actuales (Base de datos y archivos subidos). Se creará un backup de seguridad automáticamente.',
+        '⚠️ ADVERTENCIA CRÍTICA'
     );
 
     if (!confirmed) return;
@@ -169,22 +168,21 @@ async function restoreBackup() {
         }
 
         if (response.ok) {
-            alert(
-                '✅ Backup restaurado exitosamente!\n\n' +
-                'Backup de seguridad creado: ' + result.safetyBackup + '\n\n' +
-                'La página se recargará ahora.'
+            window.showNotification(
+                '✅ Backup restaurado exitosamente! La página se recargará ahora.',
+                'success'
             );
 
             // Reload page to reflect restored data
             setTimeout(() => {
                 window.location.reload();
-            }, 1000);
+            }, 2000);
         } else {
-            alert('Error al restaurar backup: ' + result.error);
+            window.showNotification('Error al restaurar backup: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Error restoring backup:', error);
-        alert('Error al restaurar backup');
+        window.showNotification('Error al restaurar backup', 'error');
     } finally {
         restoreBackupBtn.disabled = false;
         restoreBackupBtn.textContent = 'Restaurar Backup';
@@ -214,14 +212,14 @@ window.deleteBackup = async function (backupName) {
         const result = await response.json();
 
         if (response.ok) {
-            alert('✅ Backup eliminado');
+            window.showNotification('✅ Backup eliminado', 'success');
             loadBackups();
         } else {
-            alert('Error: ' + result.error);
+            window.showNotification('Error: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Error deleting backup:', error);
-        alert('Error al eliminar backup');
+        window.showNotification('Error al eliminar backup', 'error');
     }
 }
 

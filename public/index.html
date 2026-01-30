@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gestión de Facturas - Nofre Plomer</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=1.1">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 
@@ -242,6 +242,7 @@
 
                     <div id="articleFormContainer" class="hidden">
                         <form id="articleForm">
+                            <input type="hidden" id="article_id_edit">
                             <div class="form-grid">
                                 <div class="form-group">
                                     <label for="article_code">Código</label>
@@ -520,6 +521,7 @@
 
             <div id="userFormContainer" class="hidden">
                 <form id="userForm">
+                    <input type="hidden" id="user_id_edit">
                     <div class="form-grid">
                         <div class="form-group">
                             <label for="user_username">Usuario *</label>
@@ -648,10 +650,10 @@
         </div>
     </div>
 
-    <script src="confirm-modal.js"></script>
-    <script src="app.js"></script>
-    <script src="logo-management.js"></script>
-    <script src="backup-management.js"></script>
+    <script src="confirm-modal.js?v=1.1"></script>
+    <script src="app.js?v=1.1"></script>
+    <script src="logo-management.js?v=1.1"></script>
+    <script src="backup-management.js?v=1.1"></script>
 </body>
 
 </html>

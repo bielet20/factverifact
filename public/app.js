@@ -6,6 +6,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let articles = [];
     let companies = [];
     let clients = [];
+    let systemUsers = [];
     let currentArticleRow = null;
 
     // DOM Elements
@@ -255,10 +256,15 @@ document.addEventListener('DOMContentLoaded', async () => {
     cancelArticleFormBtn.addEventListener('click', () => {
         articleFormContainer.classList.add('hidden');
         articleForm.reset();
+        document.getElementById('article_id_edit').value = '';
     });
 
     articleForm.addEventListener('submit', async (e) => {
         e.preventDefault();
+
+        const editId = document.getElementById('article_id_edit').value;
+        const url = editId ? `/api/articles/${editId}` : '/api/articles';
+        const method = editId ? 'PUT' : 'POST';
 
         const formData = {
             code: document.getElementById('article_code').value,
@@ -270,8 +276,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
 
         try {
-            const response = await fetch('/api/articles', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(formData),
                 credentials: 'include'
@@ -279,6 +285,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             if (response.ok) {
                 articleForm.reset();
+                document.getElementById('article_id_edit').value = '';
                 articleFormContainer.classList.add('hidden');
                 loadArticles();
                 showNotification('✅ Artículo guardado correctamente', 'success');
@@ -1211,12 +1218,31 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td>${article.vat_rate}%</td>
                 <td>${article.category || '-'}</td>
                 <td>
-                    <button class="btn-danger" onclick="deleteArticle(${article.id})">🗑️ Eliminar</button>
+                    <div class="action-buttons">
+                        <button class="btn-icon btn-edit" onclick="window.editArticle(${article.id})" title="Editar">✏️</button>
+                        <button class="btn-icon btn-delete" onclick="window.deleteArticle(${article.id})" title="Eliminar">🗑️</button>
+                    </div>
                 </td>
             `;
             tbody.appendChild(row);
         });
     }
+
+    window.editArticle = function (id) {
+        const article = articles.find(a => a.id === id);
+        if (article) {
+            document.getElementById('article_id_edit').value = article.id;
+            document.getElementById('article_code').value = article.code || '';
+            document.getElementById('article_name').value = article.name;
+            document.getElementById('article_description').value = article.description || '';
+            document.getElementById('article_price').value = article.unit_price;
+            document.getElementById('article_vat').value = article.vat_rate;
+            document.getElementById('article_category').value = article.category || '';
+
+            articleFormContainer.classList.remove('hidden');
+            articleFormContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     window.deleteArticle = async function (id) {
         if (!confirm('¿Estás seguro de que quieres eliminar este artículo?')) {
@@ -1411,10 +1437,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('date').value = today;
     }
 
-    function showNotification(message, type = 'info') {
+    window.showNotification = function (message, type = 'info') {
         // Simple alert for now - could be enhanced with a toast notification
         alert(message);
-    }
+    };
 
     // PDF Modal Event Listeners
     document.getElementById('closePdfModal').addEventListener('click', closePdfModal);
@@ -1501,6 +1527,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         cancelUserFormBtn.addEventListener('click', () => {
             if (userFormContainer) userFormContainer.classList.add('hidden');
             if (userForm) userForm.reset();
+            document.getElementById('user_id_edit').value = '';
+            document.getElementById('user_password').required = true;
         });
     }
 
@@ -1518,6 +1546,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
 
             if (result.message === 'success') {
+                systemUsers = result.data;
                 renderUsersTable(result.data);
             }
         } catch (error) {
@@ -1554,7 +1583,12 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <td>
                     ${isProtected
                     ? '<span class="text-muted" title="Usuario protegido del sistema">🔒 Protegido</span>'
-                    : `<button class="btn-delete" data-id="${user.id}" data-username="${user.username}">Desactivar</button>`}
+                    : `
+                        <div class="action-buttons">
+                            <button class="btn-icon btn-edit" onclick="window.editUser(${user.id})" title="Editar">✏️</button>
+                            <button class="btn-icon btn-delete" data-id="${user.id}" data-username="${user.username}">Desactivar</button>
+                        </div>
+                    `}
                 </td>
             `;
 
@@ -1569,6 +1603,10 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Create User
     async function createUser() {
+        const editId = document.getElementById('user_id_edit').value;
+        const url = editId ? `/api/users/${editId}` : '/api/users';
+        const method = editId ? 'PUT' : 'POST';
+
         const usernameInput = document.getElementById('user_username');
         const passwordInput = document.getElementById('user_password');
         const fullNameInput = document.getElementById('user_full_name');
@@ -1577,15 +1615,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         const userData = {
             username: usernameInput.value,
-            password: passwordInput.value,
             full_name: fullNameInput.value,
             email: emailInput.value,
             role: roleInput.value
         };
 
+        // Only include password if creating OR if a new password was provided during edit
+        if (!editId || passwordInput.value) {
+            userData.password = passwordInput.value;
+        }
+
         try {
-            const response = await fetch('/api/users', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(userData),
                 credentials: 'include'
@@ -1594,18 +1636,39 @@ document.addEventListener('DOMContentLoaded', async () => {
             const result = await response.json();
 
             if (response.ok) {
-                showNotification('✅ Usuario creado exitosamente', 'success');
+                showNotification(`✅ Usuario ${editId ? 'actualizado' : 'creado'} exitosamente`, 'success');
                 if (userForm) userForm.reset();
                 if (userFormContainer) userFormContainer.classList.add('hidden');
+                document.getElementById('user_id_edit').value = '';
+                // Make password required again in case it was optional during edit
+                passwordInput.required = true;
                 loadUsers();
             } else {
-                showNotification('❌ ' + (result.error || 'Error al crear usuario'), 'error');
+                showNotification('❌ ' + (result.error || 'Error al guardar usuario'), 'error');
             }
         } catch (error) {
-            console.error('Error creating user:', error);
-            showNotification('❌ Error de conexión al crear usuario', 'error');
+            console.error('Error saving user:', error);
+            showNotification('❌ Error de conexión al guardar usuario', 'error');
         }
     }
+
+    window.editUser = function (id) {
+        const user = systemUsers.find(u => u.id === id);
+        if (user) {
+            document.getElementById('user_id_edit').value = user.id;
+            document.getElementById('user_username').value = user.username;
+            document.getElementById('user_full_name').value = user.full_name;
+            document.getElementById('user_email').value = user.email || '';
+            document.getElementById('user_role').value = user.role;
+
+            // Password is not required when editing
+            document.getElementById('user_password').required = false;
+            document.getElementById('user_password').value = '';
+
+            userFormContainer.classList.remove('hidden');
+            userFormContainer.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     // Delete User
     async function deleteUser(userId, username) {
