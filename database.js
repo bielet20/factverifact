@@ -1,6 +1,7 @@
 const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 
-const DBSOURCE = "invoices.db";
+const DBSOURCE = process.env.DB_PATH || (fs.existsSync('/app/data') ? '/app/data/invoices.db' : 'invoices.db');
 
 let db = new sqlite3.Database(DBSOURCE, (err) => {
     if (err) {
