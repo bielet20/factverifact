@@ -23,6 +23,17 @@ const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/u
 
 const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
 
+// Database Migration Logic for Docker
+if (isDocker && !fs.existsSync(dbPath) && fs.existsSync(path.join(__dirname, 'invoices.db'))) {
+    console.log('📦 Database found in root, migrating to /app/data/invoices.db...');
+    try {
+        fs.copyFileSync(path.join(__dirname, 'invoices.db'), dbPath);
+        console.log('✅ Database migrated successfully!');
+    } catch (err) {
+        console.error('❌ Error migrating database:', err);
+    }
+}
+
 // Trust proxy - CRITICAL for production behind reverse proxy (Coolify, SSL termination, etc)
 app.set('trust proxy', true); // Trust all proxies in the chain
 
@@ -155,17 +166,22 @@ app.post('/api/auth/login', async (req, res) => {
     try {
         db.get('SELECT * FROM users WHERE username = ? AND is_active = 1', [username], async (err, user) => {
             if (err) {
+                console.error(`[Login Error] Database error for user ${username}:`, err);
                 return res.status(500).json({ error: 'Error del servidor' });
             }
 
             if (!user) {
+                console.warn(`[Login Warning] User not found or inactive: ${username}`);
                 return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             }
 
             const isValid = await verifyPassword(password, user.password_hash);
             if (!isValid) {
+                console.warn(`[Login Warning] Invalid password for user: ${username}`);
                 return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
             }
+
+            console.log(`[Auth Log] Successful login: ${username}`);
 
             // Update last login
             db.run('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]);
