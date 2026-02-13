@@ -3,22 +3,37 @@ const path = require('path');
 const http = require('http');
 const https = require('https');
 
-// Configuration - UPDATE THIS TO MATCH YOUR SERVER
-const SERVER_URL = process.env.COOLIFY_FQDN || 'http://45.134.39.235:3000';
-const USERNAME = 'admin';
-const PASSWORD = 'admin123'; // Make sure this is correct
+/**
+ * CONFIGURATION: Add your apps here
+ */
+const APPS = [
+    {
+        name: 'invoice-app',
+        url: process.env.URL_INVOICE_APP || 'http://45.134.39.235:3000',
+        user: 'admin',
+        pass: 'admin123',
+        dbFile: 'invoices.db'
+    }
+    // {
+    //     name: 'another-app',
+    //     url: 'http://another-app.com',
+    //     user: 'admin',
+    //     pass: 'password',
+    //     dbFile: 'app.db'
+    // }
+];
 
-async function sync() {
-    console.log(`🚀 Iniciando sincronización desde ${SERVER_URL}...`);
+async function syncApp(app) {
+    console.log(`\n--- 🚀 Sincronizando: ${app.name} (${app.url}) ---`);
 
     try {
-        // 1. Login to get session cookie
-        const loginData = JSON.stringify({ username: USERNAME, password: PASSWORD });
-        const protocol = SERVER_URL.startsWith('https') ? https : http;
+        const protocol = app.url.startsWith('https') ? https : http;
+        const loginData = JSON.stringify({ username: app.user, password: app.pass });
 
+        // 1. Login
         console.log('🔑 Iniciando sesión...');
         const loginRes = await new Promise((resolve, reject) => {
-            const req = protocol.request(`${SERVER_URL}/api/auth/login`, {
+            const req = protocol.request(`${app.url}/api/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -30,20 +45,15 @@ async function sync() {
             req.end();
         });
 
-        if (loginRes.statusCode !== 200) {
-            throw new Error(`Error de login: ${loginRes.statusCode}`);
-        }
+        if (loginRes.statusCode !== 200) throw new Error(`Login fallido: ${loginRes.statusCode}`);
 
         const cookie = loginRes.headers['set-cookie'];
-        if (!cookie) {
-            throw new Error('No se recibió cookie de sesión');
-        }
-        console.log('✅ Sesión iniciada');
+        if (!cookie) throw new Error('No cookie received');
 
-        // 2. Create a fresh backup on the server
-        console.log('📦 Creando backup en el servidor...');
+        // 2. Create Backup
+        console.log('📦 Creando backup...');
         const backupRes = await new Promise((resolve, reject) => {
-            const req = protocol.request(`${SERVER_URL}/api/backups/create`, {
+            const req = protocol.request(`${app.url}/api/backups/create`, {
                 method: 'POST',
                 headers: { 'Cookie': cookie }
             }, (res) => {
@@ -55,63 +65,65 @@ async function sync() {
             req.end();
         });
 
-        if (backupRes.statusCode !== 200) {
-            throw new Error(`Error creando backup: ${backupRes.body.error}`);
-        }
+        if (backupRes.statusCode !== 200) throw new Error(`Backup fallido: ${backupRes.body.error}`);
 
         const backupName = backupRes.body.name;
-        console.log(`✅ Backup creado: ${backupName}`);
 
-        // 3. Download the backup
-        console.log('📥 Descargando backup...');
-        const downloadPath = path.join(__dirname, 'temp_backup.zip');
+        // 3. Download
+        console.log('📥 Descargando...');
+        const localDataDir = path.join(__dirname, 'vault', app.name);
+        if (!fs.existsSync(localDataDir)) fs.mkdirSync(localDataDir, { recursive: true });
+
+        const downloadPath = path.join(localDataDir, 'temp_backup.zip');
         const file = fs.createWriteStream(downloadPath);
 
         await new Promise((resolve, reject) => {
-            protocol.get(`${SERVER_URL}/api/backups/${backupName}/download`, {
+            protocol.get(`${app.url}/api/backups/${backupName}/download`, {
                 headers: { 'Cookie': cookie }
             }, (res) => {
-                if (res.statusCode !== 200) {
-                    reject(new Error(`Error descargando backup: ${res.statusCode}`));
-                    return;
-                }
                 res.pipe(file);
-                file.on('finish', () => {
-                    file.close();
-                    resolve();
-                });
+                file.on('finish', () => { file.close(); resolve(); });
             }).on('error', reject);
         });
-        console.log('✅ Backup descargado');
 
-        // 4. Extract invoices.db from the zip
-        // Since we don't want to add more dependencies if possible, 
-        // and we already have 'extract-zip' in package.json from the app
-        console.log('📂 Extrayendo invoices.db...');
+        // 4. Extract
+        console.log('📂 Procesando archivo...');
         const extract = require('extract-zip');
-        const tempExtractPath = path.join(__dirname, 'temp_extract');
+        const tempPath = path.join(localDataDir, 'temp_extract');
+        if (!fs.existsSync(tempPath)) fs.mkdirSync(tempPath);
 
-        if (!fs.existsSync(tempExtractPath)) fs.mkdirSync(tempExtractPath);
+        await extract(downloadPath, { dir: path.resolve(tempPath) });
 
-        await extract(downloadPath, { dir: tempExtractPath });
-
-        const extractedDbPath = path.join(tempExtractPath, 'invoices.db');
+        const extractedDbPath = path.join(tempPath, app.dbFile);
         if (fs.existsSync(extractedDbPath)) {
-            fs.copyFileSync(extractedDbPath, path.join(__dirname, 'invoices.db'));
-            console.log('✨ Base de datos local actualizada correctamente!');
-        } else {
-            throw new Error('No se encontró invoices.db dentro del backup');
+            // Guardamos la copia principal en la raíz de la carpeta del app en el vault
+            fs.copyFileSync(extractedDbPath, path.join(localDataDir, app.dbFile));
+            // TAMBIÉN actualizamos el archivo en la raíz del proyecto para compatibilidad con el deploy actual
+            if (app.name === 'invoice-app') {
+                fs.copyFileSync(extractedDbPath, path.join(__dirname, app.dbFile));
+            }
+            console.log(`✨ Backup de ${app.name} completado con éxito.`);
         }
 
-        // 5. Cleanup
+        // Cleanup
         fs.unlinkSync(downloadPath);
-        fs.rmSync(tempExtractPath, { recursive: true, force: true });
-        console.log('🧹 Limpieza completada');
+        fs.rmSync(tempPath, { recursive: true, force: true });
 
-    } catch (error) {
-        console.error('❌ Error durante la sincronización:', error.message);
-        process.exit(1);
+    } catch (err) {
+        console.error(`❌ Error sincronizando ${app.name}:`, err.message);
     }
 }
 
-sync();
+async function run() {
+    console.log('╔════════════════════════════════════════╗');
+    console.log('║   DB VAULT - GESTOR DE SINCRONIZACIÓN  ║');
+    console.log('╚════════════════════════════════════════╝');
+
+    for (const app of APPS) {
+        await syncApp(app);
+    }
+
+    console.log('\n✅ Proceso de sincronización finalizado.');
+}
+
+run();

@@ -1,0 +1,12 @@
+services:
+  database-vault:
+    image: alpine
+    container_name: database-vault
+    command: tail -f /dev/null
+    volumes:
+      - master_databases:/app/all_data
+    restart: unless-stopped
+
+volumes:
+  master_databases:
+    driver: local
