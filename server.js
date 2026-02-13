@@ -23,38 +23,27 @@ const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/u
 
 const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
 
-// Database Recovery & Persistence Logic
+// Database Persistence & Fallback Logic
 const rootDbPath = path.join(__dirname, 'invoices.db');
-const migrationFlagPath = '/app/data/migration_done.flag';
 
-console.log(`[Persistence] Checking database paths...`);
-console.log(`[Persistence] Root DB: ${rootDbPath} (exists: ${fs.existsSync(rootDbPath)})`);
-console.log(`[Persistence] Volume DB: ${dbPath} (exists: ${fs.existsSync(dbPath)})`);
+console.log(`[Persistence] Initializing...`);
+console.log(`[Persistence] Volume DB Path: ${dbPath} (exists: ${fs.existsSync(dbPath)})`);
+console.log(`[Persistence] Bundled DB Path: ${rootDbPath} (exists: ${fs.existsSync(rootDbPath)})`);
 
 if (isDocker) {
-    // SCENARIO 1: Fresh volume, bundled DB exists
+    // Only copy from root if the persistent volume is empty
     if (!fs.existsSync(dbPath) && fs.existsSync(rootDbPath)) {
-        console.log('📦 Volume DB missing. Recovering from bundled invoices.db...');
+        console.log('📦 Persistent volume empty. Falling back to bundled invoices.db...');
         try {
             fs.copyFileSync(rootDbPath, dbPath);
-            console.log('✅ Database recovered from bundle.');
+            console.log('✅ Database restored from bundle successfully.');
         } catch (err) {
-            console.error('❌ Error recovering database:', err);
+            console.error('❌ Error during database fallback:', err);
         }
-    }
-    // SCENARIO 2: Force refresh if root DB is newer (detected by absence of flag or explicit update)
-    else if (fs.existsSync(rootDbPath) && !fs.existsSync(migrationFlagPath)) {
-        console.log('🔄 First run or forced update detected. Syncing bundled DB to volume...');
-        try {
-            if (fs.existsSync(dbPath)) {
-                fs.copyFileSync(dbPath, dbPath + '.bak-' + Date.now());
-            }
-            fs.copyFileSync(rootDbPath, dbPath);
-            fs.writeFileSync(migrationFlagPath, 'done');
-            console.log('✅ Database updated from bundle.');
-        } catch (err) {
-            console.error('❌ Error updating database:', err);
-        }
+    } else if (!fs.existsSync(dbPath)) {
+        console.log('ℹ️ No persistent database and no bundle found. A fresh database will be created.');
+    } else {
+        console.log('✅ Using existing database from persistent volume.');
     }
 }
 
