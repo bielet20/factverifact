@@ -91,6 +91,9 @@ openssl rand -base64 32
 2. Ingresa: `facturas.tudominio.com`
 3. **Enable SSL** (Let's Encrypt automático)
 
+> [!IMPORTANT]
+> **El uso de HTTPS es fundamental.** Algunas funcionalidades del navegador (como las URLs de tipo Blob o las cookies seguras) pueden comportarse de forma restrictiva o generar advertencias en conexiones HTTP inseguras.
+
 ---
 
 ## 🚀 Paso 6: Desplegar

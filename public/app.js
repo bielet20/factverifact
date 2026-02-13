@@ -1352,53 +1352,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     window.downloadPDF = async function (invoiceId, invoiceNumber) {
-        try {
-            // Show loading indicator
-            const button = event.target;
-            const originalText = button.innerHTML;
-            button.innerHTML = '⏳ Generando...';
-            button.disabled = true;
-
-            // Fetch the PDF
-            const response = await fetch(`/api/invoices/${invoiceId}/pdf`, { credentials: 'include' });
-
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: ${response.statusText}`);
-            }
-
-            // Get the PDF as a blob
-            const blob = await response.blob();
-
-            // Create a download link
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = `Factura_${invoiceNumber}.pdf`;
-
-            // Trigger download
-            document.body.appendChild(a);
-            a.click();
-
-            // Cleanup
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
-
-            // Restore button
-            button.innerHTML = originalText;
-            button.disabled = false;
-
-            showNotification('✅ PDF descargado correctamente', 'success');
-        } catch (error) {
-            console.error('Error downloading PDF:', error);
-            showNotification('❌ Error al descargar el PDF: ' + error.message, 'error');
-
-            // Restore button on error
-            if (event && event.target) {
-                event.target.innerHTML = '📄 PDF';
-                event.target.disabled = false;
-            }
-        }
+        // Direct link is better for insecure contexts (HTTP) to avoid blob URL warnings
+        // And it simplifies the download process while preserving authentication
+        const downloadUrl = `/api/invoices/${invoiceId}/pdf?download=true`;
+        window.location.href = downloadUrl;
+        showNotification('⏳ Iniciando descarga de PDF...', 'info');
     };
 
     window.previewPDF = function (invoiceId, invoiceNumber) {
@@ -1455,8 +1413,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     function closePdfModal() {
         const modal = document.getElementById('pdfModal');
         const iframe = document.getElementById('pdfViewer');
-        iframe.src = ''; // Clear iframe
-        modal.classList.add('hidden');
+        if (iframe) iframe.src = 'about:blank';
+        if (modal) modal.classList.add('hidden');
     }
 
     // Filter Event Listeners

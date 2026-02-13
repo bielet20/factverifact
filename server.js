@@ -14,10 +14,24 @@ const BackupManager = require('./backup-manager.js');
 
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
-const backupManager = new BackupManager();
+
+// Configurar BackupManager con rutas persistentes
+const isDocker = fs.existsSync('/app/data');
+const backupDir = process.env.BACKUP_PATH || (isDocker ? '/app/data/backups' : './backups');
+const dbPath = process.env.DB_PATH || (isDocker ? '/app/data/invoices.db' : './invoices.db');
+const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/uploads/logos' : path.join(__dirname, 'public', 'uploads', 'logos'));
+
+const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
 
 // Trust proxy - CRITICAL for production behind reverse proxy (Coolify, SSL termination, etc)
 app.set('trust proxy', true); // Trust all proxies in the chain
+
+// Global Security Headers
+app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    next();
+});
 
 // Session configuration
 app.use(session({
@@ -1863,9 +1877,16 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                     const filename = `Factura_${invoiceData.invoice_number}.pdf`;
                     const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
 
+                    // Security headers to avoid blob URL issues in some browsers
                     res.setHeader('Content-Type', 'application/pdf');
                     res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
                     res.setHeader('Content-Length', pdfBuffer.length);
+                    res.setHeader('X-Content-Type-Options', 'nosniff');
+
+                    // Relaxed CSP for PDF viewer to allow its own internal blobs if needed, 
+                    // but encouraging direct serving.
+                    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src 'self';");
+
                     res.send(pdfBuffer);
 
                 } catch (pdfError) {
