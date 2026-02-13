@@ -23,35 +23,39 @@ const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/u
 
 const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
 
-// Database Migration Logic for Docker
+// Database Migration & Diagnosis Logic
 const rootDbPath = path.join(__dirname, 'invoices.db');
 const migrationFlagPath = '/app/data/migration_done.flag';
 
+console.log(`[Diagnostic] isDocker: ${isDocker}`);
+console.log(`[Diagnostic] rootDbPath: ${rootDbPath} (exists: ${fs.existsSync(rootDbPath)})`);
+console.log(`[Diagnostic] dbPath: ${dbPath} (exists: ${fs.existsSync(dbPath)})`);
+if (fs.existsSync(dbPath)) {
+    console.log(`[Diagnostic] dbPath size: ${fs.statSync(dbPath).size} bytes`);
+}
+if (fs.existsSync(rootDbPath)) {
+    console.log(`[Diagnostic] rootDbPath size: ${fs.statSync(rootDbPath).size} bytes`);
+}
+
 if (isDocker && fs.existsSync(rootDbPath)) {
+    // If the file in root is significantly different or the target doesn't exist, we copy.
+    // We also check for the flag to avoid infinite loops, but we'll be more verbose.
     if (!fs.existsSync(migrationFlagPath)) {
-        console.log('📦 Database found in root, FORCE RESTORING to /app/data/invoices.db...');
+        console.log('📦 Database found in root, attempting to FORCE RESTORE...');
         try {
-            // Backup existing one if it exists (extra safety)
             if (fs.existsSync(dbPath)) {
-                fs.copyFileSync(dbPath, dbPath + '.bak-' + Date.now());
+                const backupPath = dbPath + '.bak-' + Date.now();
+                fs.copyFileSync(dbPath, backupPath);
+                console.log(`✅ Security backup created at ${backupPath}`);
             }
             fs.copyFileSync(rootDbPath, dbPath);
             fs.writeFileSync(migrationFlagPath, 'done');
-            console.log('✅ Database FORCE RESTORED successfully!');
+            console.log('✅ Database FORCE RESTORED successfully from root!');
         } catch (err) {
-            console.error('❌ Error force restoring database:', err);
+            console.error('❌ Error during force restore:', err);
         }
     } else {
-        console.log('ℹ️ Database found in root but migration flag exists. Skipping restore.');
-    }
-} else if (isDocker && !fs.existsSync(dbPath) && fs.existsSync(rootDbPath)) {
-    // Fallback if flag logic fails but file doesn't exist in destination
-    console.log('📦 Database found in root, migrating to /app/data/invoices.db...');
-    try {
-        fs.copyFileSync(rootDbPath, dbPath);
-        console.log('✅ Database migrated successfully!');
-    } catch (err) {
-        console.error('❌ Error migrating database:', err);
+        console.log('ℹ️ Migration flag exists. If you need to re-migrate, delete /app/data/migration_done.flag');
     }
 }
 
