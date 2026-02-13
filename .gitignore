@@ -10,8 +10,8 @@ yarn-error.log*
 .env.production
 
 # Database
-*.db
-*.db-journal
+#*.db
+#*.db-journal
 data/
 
 # Uploads (logos, etc)
