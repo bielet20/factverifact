@@ -2309,10 +2309,33 @@ app.listen(HTTP_PORT, async () => {
 
     // Wait for database to be fully initialized
     setTimeout(async () => {
+        // --- SAFE PURGE MECHANISM ---
+        if (process.env.PURGE_DATABASE === 'true') {
+            console.log('⚠️ [DANGER] PURGE_DATABASE=true detected. Wiping all transaction data...');
+            const tablesToPurge = ['invoices', 'invoice_items', 'articles', 'clients', 'companies', 'invoice_audit_log'];
+
+            await new Promise((resolve) => {
+                db.serialize(() => {
+                    tablesToPurge.forEach(table => {
+                        db.run(`DELETE FROM ${table}`, (err) => {
+                            if (err) console.error(`[Purge] Error cleaning ${table}:`, err.message);
+                            else console.log(`[Purge] Table ${table} cleaned.`);
+                        });
+                    });
+                    // Reset sequences
+                    db.run("DELETE FROM sqlite_sequence", () => {
+                        console.log('[Purge] Reset auto-increment sequences.');
+                        resolve();
+                    });
+                });
+            });
+            console.log('✅ [Purge] Database wipe complete.');
+        }
+
         await initializeUsers();
 
-        // Initialize demo data if enabled
-        if (process.env.INIT_DEMO_DATA === 'true') {
+        // Initialize demo data if enabled (and not purging)
+        if (process.env.INIT_DEMO_DATA === 'true' && process.env.PURGE_DATABASE !== 'true') {
             const { initializeDemoData } = require('./init-demo.js');
             setTimeout(() => {
                 initializeDemoData();
