@@ -1138,3 +1138,81 @@ tbody tr:hover {
 .modal-overlay .modal-footer button {
     min-width: 100px;
 }
+/* Security Banner Styles */
+.security-banner {
+    background: linear-gradient(135deg, #ea580c 0%, #dc2626 100%);
+    color: white;
+    padding: 0.75rem 1rem;
+    position: sticky;
+    top: 0;
+    z-index: 2000;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    animation: slideDown 0.5s ease;
+}
+
+.banner-content {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.banner-icon {
+    font-size: 1.25rem;
+}
+
+.banner-message {
+    font-weight: 500;
+    font-size: 0.95rem;
+}
+
+.banner-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.btn-banner {
+    background: white;
+    color: #dc2626;
+    padding: 0.4rem 0.8rem;
+    border-radius: 6px;
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.85rem;
+    transition: all 0.2s;
+}
+
+.btn-banner:hover {
+    background: #f1f5f9;
+    transform: scale(1.05);
+}
+
+.btn-banner-close {
+    background: transparent;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.8;
+}
+
+.btn-banner-close:hover {
+    opacity: 1;
+}
+
+@keyframes slideDown {
+    from { transform: translateY(-100%); }
+    to { transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .banner-message {
+        text-align: center;
+        width: 100%;
+    }
+}

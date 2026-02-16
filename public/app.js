@@ -62,6 +62,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 // Update localStorage with fresh data
                 localStorage.setItem('user', JSON.stringify(window.currentUser));
                 initializeUserUI();
+                checkSecurityRequirements();
                 return true;
             } else {
                 // If session is invalid on server, clear localStorage
@@ -1662,6 +1663,27 @@ document.addEventListener('DOMContentLoaded', async () => {
                 loadUsers();
             }
         });
+    }
+
+    // Security Requirements Check
+    function checkSecurityRequirements() {
+        const securityBanner = document.getElementById('securityBanner');
+        const closeSecurityBanner = document.getElementById('closeSecurityBanner');
+
+        if (!currentUser || !securityBanner) return;
+
+        // Show banner if must_change_password is true
+        if (currentUser.must_change_password === 1) {
+            securityBanner.classList.remove('hidden');
+
+            if (closeSecurityBanner) {
+                closeSecurityBanner.addEventListener('click', () => {
+                    securityBanner.classList.add('hidden');
+                    // Notify risk if ignored
+                    showNotification('⚠️ Atención: Mantener la contraseña por defecto es un riesgo crítico de seguridad.', 'error');
+                });
+            }
+        }
     }
 });
 
