@@ -12,6 +12,7 @@ yarn-error.log*
 # Database
 # *.db
 *.db-journal
+!data/invoices.db
 data/
 
 # Uploads (logos, etc)

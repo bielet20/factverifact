@@ -379,16 +379,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         clients.forEach(client => {
             const tr = document.createElement('tr');
             tr.innerHTML = `
-                <td>${client.name}</td>
-                <td>${client.cif}</td>
-                <td>
+                <td data-label="Nombre">${client.name}</td>
+                <td data-label="CIF/NIF">${client.cif}</td>
+                <td data-label="Contacto">
                     <div class="client-contact">
                         ${client.phone ? `<div>📞 ${client.phone}</div>` : ''}
                         ${client.email ? `<div>📧 ${client.email}</div>` : ''}
                     </div>
                 </td>
-                <td><span class="badge badge-${client.client_type}">${client.client_type}</span></td>
-                <td>
+                <td data-label="Tipo"><span class="badge badge-${client.client_type}">${client.client_type}</span></td>
+                <td data-label="Acciones">
                     <div class="action-buttons">
                         <button class="btn-icon btn-edit" onclick="window.editClient(${client.id})" title="Editar">✏️</button>
                         <button class="btn-icon btn-delete" onclick="window.deleteClient(${client.id})" title="Eliminar">🗑️</button>
@@ -1063,14 +1063,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         companiesList.forEach(company => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td><strong>${company.company_name}</strong></td>
-                <td>${company.cif}</td>
-                <td>
+                <td data-label="Empresa"><strong>${company.company_name}</strong></td>
+                <td data-label="CIF">${company.cif}</td>
+                <td data-label="Contacto">
                     ${company.phone || ''}<br>
                     <small>${company.email || ''}</small>
                 </td>
-                <td>${company.verifactu_enabled ? '✅ Habilitado' : '❌ Desactivado'}</td>
-                <td>
+                <td data-label="Veri*Factu">${company.verifactu_enabled ? '✅ Habilitado' : '❌ Desactivado'}</td>
+                <td data-label="Acciones">
                     <div class="btn-actions">
                         <button class="btn-preview" onclick="editCompany(${company.id})">✏️ Editar</button>
                         <button class="btn-danger" onclick="deleteCompany(${company.id})">🗑️</button>
@@ -1211,13 +1211,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         articles.forEach(article => {
             const row = document.createElement('tr');
             row.innerHTML = `
-                <td>${article.code || '-'}</td>
-                <td>${article.name}</td>
-                <td>${article.description || '-'}</td>
-                <td>${formatCurrency(article.unit_price)}</td>
-                <td>${article.vat_rate}%</td>
-                <td>${article.category || '-'}</td>
-                <td>
+                <td data-label="Código">${article.code || '-'}</td>
+                <td data-label="Nombre">${article.name}</td>
+                <td data-label="Descripción">${article.description || '-'}</td>
+                <td data-label="Precio">${formatCurrency(article.unit_price)}</td>
+                <td data-label="IVA">${article.vat_rate}%</td>
+                <td data-label="Categoría">${article.category || '-'}</td>
+                <td data-label="Acciones">
                     <div class="action-buttons">
                         <button class="btn-icon btn-edit" onclick="window.editArticle(${article.id})" title="Editar">✏️</button>
                         <button class="btn-icon btn-delete" onclick="window.deleteArticle(${article.id})" title="Eliminar">🗑️</button>
@@ -1326,14 +1326,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
 
             row.innerHTML = `
-                <td>${invoice.company_name || 'N/A'}</td>
-                <td>${invoice.invoice_number}${verifactuBadge}</td>
-                <td>${formatDate(invoice.date)}</td>
-                <td>${invoice.client_name}</td>
-                <td>${statusBadge}</td>
-                <td>${clientTypeBadge}</td>
-                <td style="font-weight: 600;">${formatCurrency(invoice.total)}</td>
-                <td>
+                <td data-label="Empresa">${invoice.company_name || 'N/A'}</td>
+                <td data-label="Nº Factura">${invoice.invoice_number}${verifactuBadge}</td>
+                <td data-label="Fecha">${formatDate(invoice.date)}</td>
+                <td data-label="Cliente">${invoice.client_name}</td>
+                <td data-label="Estado">${statusBadge}</td>
+                <td data-label="Tipo">${clientTypeBadge}</td>
+                <td data-label="Total" style="font-weight: 600;">${formatCurrency(invoice.total)}</td>
+                <td data-label="Acciones">
                     <div class="btn-actions">
                         ${invoice.status !== 'final' && !invoice.is_cancelled ?
                     `<button class="btn-secondary" onclick="editInvoice(${invoice.id})">✏️ Editar</button>` : ''}
