@@ -11,6 +11,7 @@ const verifactu = require('./verifactu.js');
 const { hashPassword, verifyPassword, requireAuth, requireRole, getCurrentUser } = require('./auth.js');
 const emailService = require('./email-service.js');
 const BackupManager = require('./backup-manager.js');
+const cron = require('node-cron');
 
 const app = express();
 const HTTP_PORT = process.env.PORT || 3000;
