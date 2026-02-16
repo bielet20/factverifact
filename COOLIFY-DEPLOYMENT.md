@@ -120,7 +120,7 @@ Contraseña: admin123
 ```
 
 ### Verificar datos demo:
-- ✅ Empresa: Nofre Plomer S.L.
+- ✅ Empresa: FACTAPP S.L.
 - ✅ 8 Artículos/Servicios
 - ✅ Factura de ejemplo
 

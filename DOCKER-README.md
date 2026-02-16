@@ -47,7 +47,7 @@ Contraseña: admin123
 
 Al iniciar por primera vez con `INIT_DEMO_DATA=true`, se crean:
 
-- ✅ **Empresa demo**: Nofre Plomer S.L. (fontanería)
+- ✅ **Empresa demo**: FACTAPP S.L. (servicios genéricos)
 - ✅ **8 Artículos/Servicios**: Reparaciones, instalaciones, materiales
 - ✅ **Factura de ejemplo**: Con 3 líneas de productos/servicios
 - ✅ **Usuario admin**: Con permisos completos
@@ -245,4 +245,4 @@ Para problemas o preguntas, consulta la documentación o crea un issue.
 
 **Versión**: 1.0.0  
 **Licencia**: MIT  
-**Autor**: Nofre Plomer S.L.
+**Autor**: FACTAPP
