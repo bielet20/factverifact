@@ -11,12 +11,12 @@ async function initializeDemoData() {
                 VALUES (1, 'admin', ?, 'Administrador', 'admin', 1, 1)`, [adminPassword]);
         console.log('✅ Usuario admin creado');
 
-        // 2. Crear empresa demo "Nofre Plomer S.L."
+        // 2. Crear empresa demo "FACTAPP S.L."
         db.run(`INSERT OR IGNORE INTO companies (id, name, cif, address, city, postal_code, phone, email) 
-                VALUES (1, 'Nofre Plomer S.L.', 'B12345678', 'Calle Mayor 123', 'Palma', '07001', '971123456', 'info@nofreplomer.com')`,
+                VALUES (1, 'FACTAPP S.L.', 'B12345678', 'Calle Mayor 123', 'Palma', '07001', '971123456', 'info@factapp.com')`,
             (err) => {
                 if (err) console.error('Error creando empresa:', err);
-                else console.log('✅ Empresa demo creada: Nofre Plomer S.L.');
+                else console.log('✅ Empresa demo creada: FACTAPP S.L.');
             });
 
         // 3. Crear artículos/servicios de fontanería

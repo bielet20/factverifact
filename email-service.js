@@ -59,7 +59,7 @@ async function sendPasswordResetEmail(email, token, userName) {
                         <p>Si no solicitaste este cambio, ignora este email.</p>
                     </div>
                     <div class="footer">
-                        <p>Sistema de Gestión de Facturas - Nofre Plomer</p>
+                        <p>Sistema de Gestión de Facturas - FACTAPP</p>
                     </div>
                 </div>
             </body>

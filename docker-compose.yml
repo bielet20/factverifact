@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: facturas-nofre-plomer
+    container_name: factapp
     ports:
       - "3000:3000"
     environment:

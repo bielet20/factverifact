@@ -1,4 +1,4 @@
-# 🧾 Sistema de Gestión de Facturas
+# 🧾 FACTAPP - Sistema de Gestión de Facturas
 
 Sistema completo de gestión de facturas con integración Veri*Factu.
 

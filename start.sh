@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🚀 Iniciando Gestión de Facturas - Nofre Plomer"
+echo "🚀 Iniciando Gestión de Facturas - FACTAPP"
 echo "=============================================="
 
 # Verificar si Docker está instalado
