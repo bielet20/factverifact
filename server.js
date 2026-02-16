@@ -2312,28 +2312,55 @@ app.listen(HTTP_PORT, async () => {
     setTimeout(async () => {
         // --- SAFE PURGE MECHANISM ---
         if (process.env.PURGE_DATABASE === 'true') {
-            console.log('⚠️ [DANGER] PURGE_DATABASE=true detected. Wiping all transaction data...');
-            const tablesToPurge = ['invoices', 'invoice_items', 'articles', 'clients', 'companies', 'invoice_audit_log'];
+            console.log('⚠️ [DANGER] PURGE_DATABASE=true detected. Preparing security backup before wipe...');
 
-            await new Promise((resolve) => {
-                db.serialize(() => {
-                    tablesToPurge.forEach(table => {
-                        db.run(`DELETE FROM ${table}`, (err) => {
-                            if (err) console.error(`[Purge] Error cleaning ${table}:`, err.message);
-                            else console.log(`[Purge] Table ${table} cleaned.`);
+            try {
+                // Create emergency backup before purge
+                const emergencyBackup = await backupManager.createBackup([{
+                    action: 'EMERGENCY_PRE_PURGE_BACKUP',
+                    timestamp: new Date().toISOString()
+                }]);
+                console.log(`✅ [Safety] Emergency backup created: ${emergencyBackup.name}`);
+
+                console.log('⚠️ [DANGER] Wiping all transaction data...');
+                const tablesToPurge = ['invoices', 'invoice_items', 'articles', 'clients', 'companies', 'invoice_audit_log'];
+
+                await new Promise((resolve) => {
+                    db.serialize(() => {
+                        tablesToPurge.forEach(table => {
+                            db.run(`DELETE FROM ${table}`, (err) => {
+                                if (err) console.error(`[Purge] Error cleaning ${table}:`, err.message);
+                                else console.log(`[Purge] Table ${table} cleaned.`);
+                            });
+                        });
+                        // Reset sequences
+                        db.run("DELETE FROM sqlite_sequence", () => {
+                            console.log('[Purge] Reset auto-increment sequences.');
+                            resolve();
                         });
                     });
-                    // Reset sequences
-                    db.run("DELETE FROM sqlite_sequence", () => {
-                        console.log('[Purge] Reset auto-increment sequences.');
-                        resolve();
-                    });
                 });
-            });
-            console.log('✅ [Purge] Database wipe complete.');
+                console.log('✅ [Purge] Database wipe complete.');
+            } catch (backupErr) {
+                console.error('❌ [Safety] COULD NOT CREATE EMERGENCY BACKUP. ABORTING PURGE for data safety.', backupErr);
+            }
         }
 
         await initializeUsers();
+
+        // --- AUTOMATIC SCHEDULED BACKUPS ---
+        // Schedule daily backup at 00:00
+        cron.schedule('0 0 * * *', async () => {
+            console.log('⏰ [Cron] Running scheduled daily backup...');
+            try {
+                const backup = await backupManager.createBackup([{ action: 'SCHEDULED_DAILY_BACKUP' }]);
+                await backupManager.cleanOldBackups(30); // Keep last 30 backups
+                console.log(`✅ [Cron] Daily backup completed: ${backup.name}`);
+            } catch (err) {
+                console.error('❌ [Cron] Error during scheduled backup:', err);
+            }
+        });
+        console.log('📅 [Cron] Daily backups scheduled for 00:00.');
 
         // Initialize demo data if enabled (and not purging)
         if (process.env.INIT_DEMO_DATA === 'true' && process.env.PURGE_DATABASE !== 'true') {
