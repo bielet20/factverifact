@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Gestión de Facturas - FACTAPP</title>
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="style.css?v=2.1">
     <link
         href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
         rel="stylesheet">
@@ -144,8 +144,10 @@
 
                         <div class="form-actions">
                             <button type="button" class="btn-secondary" id="saveDraftBtn">💾 Guardar Borrador</button>
-                            <button type="submit" class="btn-primary" id="finalizeInvoiceBtn">📝 Finalizar y
-                                Bloquear</button>
+                            <button type="button" class="btn-proforma" id="saveProformaBtn">📄 Guardar como
+                                Proforma</button>
+                            <button type="submit" class="btn-primary" id="finalizeInvoiceBtn">✅ Finalizar como Factura
+                                Definitiva</button>
                             <button type="button" class="btn-secondary" id="clearFormBtn">🗑️ Limpiar</button>
                             <button type="button" class="btn-danger hidden" id="cancelEditBtn">❌ Cancelar
                                 Edición</button>
@@ -665,10 +667,10 @@
         </div>
     </div>
 
-    <script src="confirm-modal.js?v=1.2"></script>
-    <script src="app.js?v=1.2"></script>
-    <script src="logo-management.js?v=1.2"></script>
-    <script src="backup-management.js?v=1.2"></script>
+    <script src="confirm-modal.js?v=1.3"></script>
+    <script src="app.js?v=1.3"></script>
+    <script src="logo-management.js?v=1.3"></script>
+    <script src="backup-management.js?v=1.3"></script>
 </body>
 
 </html>
