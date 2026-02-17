@@ -541,7 +541,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     }
 
-    document.getElementById('clearFormBtn').addEventListener('click', clearInvoiceForm);
+    const clearFormBtnInvoice = document.getElementById('clearFormBtn');
+    if (clearFormBtnInvoice) {
+        clearFormBtnInvoice.addEventListener('click', clearInvoiceForm);
+    }
 
     const cancelEditBtn = document.getElementById('cancelEditBtn');
     if (cancelEditBtn) {
