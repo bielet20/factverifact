@@ -1,4 +1,28 @@
 document.addEventListener('DOMContentLoaded', async () => {
+    // Utility function for notifications
+    function showNotification(message, type = 'info') {
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            background: ${type === 'success' ? '#4CAF50' : type === 'error' ? '#f44336' : '#2196F3'};
+            color: white;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease-out;
+        `;
+        document.body.appendChild(notification);
+        setTimeout(() => {
+            notification.style.animation = 'slideOut 0.3s ease-out';
+            setTimeout(() => notification.remove(), 300);
+        }, 3000);
+    }
+
     // Global variable for current user
     window.currentUser = null;
 
@@ -496,14 +520,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Invoice Form Handling
     let currentEditingInvoiceId = null;
 
-    document.getElementById('saveDraftBtn').addEventListener('click', () => submitInvoice('draft'));
-    document.getElementById('saveProformaBtn').addEventListener('click', () => submitInvoice('proforma'));
-    document.getElementById('finalizeInvoiceBtn').addEventListener('click', (e) => {
-        e.preventDefault();
-        if (confirm('¿Estás seguro de finalizar esta factura? No podrás modificarla después.')) {
-            submitInvoice('final');
-        }
-    });
+    const saveDraftBtn = document.getElementById('saveDraftBtn');
+    const saveProformaBtn = document.getElementById('saveProformaBtn');
+    const finalizeInvoiceBtn = document.getElementById('finalizeInvoiceBtn');
+
+    if (saveDraftBtn) {
+        saveDraftBtn.addEventListener('click', () => submitInvoice('draft'));
+    }
+
+    if (saveProformaBtn) {
+        saveProformaBtn.addEventListener('click', () => submitInvoice('proforma'));
+    }
+
+    if (finalizeInvoiceBtn) {
+        finalizeInvoiceBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (confirm('¿Estás seguro de finalizar esta factura? No podrás modificarla después.')) {
+                submitInvoice('final');
+            }
+        });
+    }
 
     document.getElementById('clearFormBtn').addEventListener('click', clearInvoiceForm);
 
