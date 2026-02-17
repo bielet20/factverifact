@@ -497,6 +497,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let currentEditingInvoiceId = null;
 
     document.getElementById('saveDraftBtn').addEventListener('click', () => submitInvoice('draft'));
+    document.getElementById('saveProformaBtn').addEventListener('click', () => submitInvoice('proforma'));
     document.getElementById('finalizeInvoiceBtn').addEventListener('click', (e) => {
         e.preventDefault();
         if (confirm('¿Estás seguro de finalizar esta factura? No podrás modificarla después.')) {
@@ -614,7 +615,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             });
 
             if (response.ok) {
-                const action = status === 'final' ? 'finalizada' : 'guardada';
+                let action = 'guardada';
+                if (status === 'final') action = 'finalizada';
+                if (status === 'proforma') action = 'generada como proforma';
+
                 showNotification(`✅ Factura ${action} correctamente`, 'success');
                 clearInvoiceForm();
                 loadInvoices();
@@ -1322,6 +1326,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                 statusBadge = '<span class="badge badge-cancelled">⚠️ Anulada</span>';
             } else if (invoice.status === 'final') {
                 statusBadge = '<span class="badge badge-final">🔒 Finalizada</span>';
+            } else if (invoice.status === 'proforma') {
+                statusBadge = '<span class="badge badge-proforma">📄 Proforma</span>';
             } else {
                 statusBadge = '<span class="badge badge-draft">📝 Borrador</span>';
             }
@@ -1345,6 +1351,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button class="btn-pdf" onclick="downloadPDF(${invoice.id}, '${invoice.invoice_number}')">
                             📄
                         </button>
+                        ${invoice.status !== 'final' ?
+                    `<button class="btn-danger" style="padding: 0.2rem 0.5rem; font-size: 0.8rem;" onclick="window.deleteInvoice(${invoice.id})" title="Ocultar/Eliminar">🗑️</button>` : ''}
                     </div>
                 </td>
             `;
@@ -1358,6 +1366,28 @@ document.addEventListener('DOMContentLoaded', async () => {
         const downloadUrl = `/api/invoices/${invoiceId}/pdf?download=true`;
         window.location.href = downloadUrl;
         showNotification('⏳ Iniciando descarga de PDF...', 'info');
+    };
+
+    window.deleteInvoice = async function (id) {
+        if (!confirm('¿Estás seguro de que deseas ocultar/eliminar esta factura? (Se mantendrá en el sistema pero no se verá en la lista)')) return;
+
+        try {
+            const response = await fetch(`/api/invoices/${id}`, {
+                method: 'DELETE',
+                credentials: 'include'
+            });
+
+            if (response.ok) {
+                loadInvoices();
+                showNotification('✅ Factura ocultada correctamente', 'success');
+            } else {
+                const errorData = await response.json();
+                showNotification('❌ Error: ' + (errorData.error || 'No se pudo ocultar la factura'), 'error');
+            }
+        } catch (error) {
+            console.error('Error deleting invoice:', error);
+            showNotification('❌ Error de conexión', 'error');
+        }
     };
 
     window.previewPDF = function (invoiceId, invoiceNumber) {

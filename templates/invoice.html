@@ -238,6 +238,9 @@
     {{#if (eq invoice.status 'draft')}}
     <div class="draft-banner">BORRADOR - NO VÁLIDO FISCALMENTE</div>
     {{/if}}
+    {{#if (eq invoice.status 'proforma')}}
+    <div class="draft-banner proforma-banner">PROFORMA - NO VÁLIDO FISCALMENTE</div>
+    {{/if}}
     <div class="header">
         <div class="header-left">
             {{#if company.logoBase64}}
@@ -258,7 +261,13 @@
             </div>
         </div>
         <div class="header-right">
-            <div class="invoice-title">Factura</div>
+            <div class="invoice-title">
+                {{#if (eq invoice.status 'proforma')}}
+                Factura Proforma
+                {{else}}
+                Factura
+                {{/if}}
+            </div>
             {{#if invoice.qr_code}}
             <div style="margin-top: 10px;">
                 <img src="{{invoice.qr_code}}" alt="QR Veri*Factu" style="width: 120px; height: 120px;">

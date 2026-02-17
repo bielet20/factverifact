@@ -18,14 +18,25 @@ const HTTP_PORT = process.env.PORT || 3000;
 
 // Configurar BackupManager con rutas persistentes
 const isDocker = fs.existsSync('/app/data');
-const backupDir = process.env.BACKUP_PATH || (isDocker ? '/app/data/backups' : './backups');
-const dbPath = process.env.DB_PATH || (isDocker ? '/app/data/invoices.db' : './invoices.db');
-const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/uploads/logos' : path.join(__dirname, 'public', 'uploads', 'logos'));
+// FOR TESTING ON MAC: Use /tmp for everything to avoid permission issues
+const TEST_TMP_ROOT = '/tmp/factapp';
+if (!fs.existsSync(TEST_TMP_ROOT)) fs.mkdirSync(TEST_TMP_ROOT, { recursive: true });
+
+// Redirigir TMPDIR para Puppeteer y otros procesos temporales
+process.env.TMPDIR = path.join(TEST_TMP_ROOT, 'tmp');
+if (!fs.existsSync(process.env.TMPDIR)) fs.mkdirSync(process.env.TMPDIR, { recursive: true });
+
+const backupDir = process.env.BACKUP_PATH || (isDocker ? '/app/data/backups' : path.join(TEST_TMP_ROOT, 'backups'));
+const dbPath = process.env.DB_PATH || (isDocker ? '/app/data/invoices.db' : '/tmp/invoices_fact.db');
+const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/uploads/logos' : path.join(TEST_TMP_ROOT, 'uploads', 'logos'));
+
+if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+if (!fs.existsSync(path.dirname(uploadsDirForBackup))) fs.mkdirSync(path.dirname(uploadsDirForBackup), { recursive: true });
 
 const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
 
 // Database Persistence & Fallback Logic
-const rootDbPath = path.join(__dirname, 'invoices.db');
+const rootDbPath = path.join(__dirname, 'data', 'invoices.db');
 
 console.log(`[Persistence] Initializing...`);
 console.log(`[Persistence] Volume DB Path: ${dbPath} (exists: ${fs.existsSync(dbPath)})`);
@@ -109,7 +120,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Create uploads directory if it doesn't exist
 // Create uploads directory in persistent volume
-const uploadsDir = process.env.UPLOADS_PATH || (fs.existsSync('/app/data') ? '/app/data/uploads/logos' : path.join(__dirname, 'public', 'uploads', 'logos'));
+const uploadsDir = process.env.UPLOADS_PATH || (fs.existsSync('/app/data') ? '/app/data/uploads/logos' : '/tmp/factapp/uploads/logos');
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }
@@ -1122,8 +1133,8 @@ app.delete('/api/articles/:id', requireAuth, (req, res) => {
 // Create a new invoice with multiple line items and Veri*Factu support
 app.post('/api/invoices', requireAuth, async (req, res) => {
     var errors = []
-    if (!req.body.invoice_number) {
-        errors.push("No invoice number specified");
+    if (!req.body.invoice_number && req.body.status === 'final') {
+        errors.push("No invoice number specified for final invoice");
     }
     if (!req.body.company_id) {
         errors.push("Company is required");
@@ -1275,14 +1286,16 @@ app.post('/api/invoices', requireAuth, async (req, res) => {
                 invoiceId,
                 item.article_id || null,
                 item.description,
-                item.quantity,
-                item.unit_price,
-                item.vat_rate,
-                item.line_total,
-                item.line_vat,
-                item.line_total_with_vat,
+                item.quantity || 1,
+                item.unit_price || 0,
+                item.vat_rate || 0,
+                item.line_total || 0,
+                item.line_vat || 0,
+                item.line_total_with_vat || 0,
                 index
             ];
+
+            console.log('DEBUG Item Params:', itemParams);
 
             await new Promise((resolve, reject) => {
                 db.run(itemSql, itemParams, (err) => {
@@ -1320,7 +1333,7 @@ app.get('/api/invoices', requireAuth, (req, res) => {
     let sql = `SELECT invoices.*, companies.company_name 
                FROM invoices 
                LEFT JOIN companies ON invoices.company_id = companies.id
-               WHERE 1=1`;
+               WHERE invoices.is_deleted = 0`;
     const params = [];
 
     // Company filter
@@ -1565,6 +1578,48 @@ app.post('/api/invoices/:id/cancel', async (req, res) => {
     }
 });
 
+// Delete (Hide) an invoice - logical delete
+app.delete('/api/invoices/:id', requireAuth, async (req, res) => {
+    try {
+        const invoiceId = req.params.id;
+
+        // Get invoice to check status
+        const invoice = await new Promise((resolve, reject) => {
+            db.get('SELECT * FROM invoices WHERE id = ?', [invoiceId], (err, row) => {
+                if (err) reject(err);
+                else resolve(row);
+            });
+        });
+
+        if (!invoice) {
+            return res.status(404).json({ error: "Invoice not found" });
+        }
+
+        // Logical delete
+        await new Promise((resolve, reject) => {
+            db.run('UPDATE invoices SET is_deleted = 1 WHERE id = ?', [invoiceId], (err) => {
+                if (err) reject(err);
+                else resolve();
+            });
+        });
+
+        // Log audit
+        await verifactu.logAuditEntry(db, invoiceId, 'HIDE', {
+            user_info: req.session.user?.username || 'system',
+            previous_state: { is_deleted: 0 },
+            new_state: { is_deleted: 1 },
+            ip_address: req.ip
+        });
+
+        res.json({ message: "Invoice hidden successfully" });
+
+    } catch (error) {
+        console.error('Error hiding invoice:', error);
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 // Update an invoice (only if draft)
 app.put('/api/invoices/:id', requireAuth, async (req, res) => {
     const invoiceId = req.params.id;
@@ -1634,7 +1689,7 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
 
         const updateSql = `UPDATE invoices SET 
             date = ?, client_name = ?, client_cif = ?, client_address = ?, client_type = ?, 
-            notes = ?, subtotal = ?, total_vat = ?, total = ?, client_id = ?, company_id = ?, invoice_number = ?
+            notes = ?, subtotal = ?, total_vat = ?, total = ?, client_id = ?, company_id = ?, invoice_number = ?, status = ?
             WHERE id = ?`;
 
         const updateParams = [
@@ -1650,6 +1705,7 @@ app.put('/api/invoices/:id', requireAuth, async (req, res) => {
             client_id,
             company_id,
             invoice_number,
+            req.body.status || invoice.status,
             invoiceId
         ];
 
@@ -1900,28 +1956,40 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                 };
 
                 try {
-                    // Generate PDF
-                    const pdfBuffer = await generateInvoicePDF(invoiceData, companyData);
+                    // Try to generate PDF
+                    let pdfBuffer;
+                    let isHtmlFallback = false;
 
-                    // Set headers for PDF download with proper filename
-                    const filename = `Factura_${invoiceData.invoice_number}.pdf`;
-                    const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
+                    try {
+                        pdfBuffer = await generateInvoicePDF(invoiceData, companyData);
+                    } catch (pdfError) {
+                        console.error('Puppeteer PDF failed, falling back to HTML:', pdfError.message);
+                        const { renderInvoiceHTML } = require('./pdfGenerator.js');
+                        const html = await renderInvoiceHTML(invoiceData, companyData);
+                        pdfBuffer = Buffer.from(html);
+                        isHtmlFallback = true;
+                    }
 
-                    // Security headers to avoid blob URL issues in some browsers
-                    res.setHeader('Content-Type', 'application/pdf');
-                    res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
-                    res.setHeader('Content-Length', pdfBuffer.length);
+                    // Set headers
+                    if (isHtmlFallback) {
+                        res.setHeader('Content-Type', 'text/html');
+                        // No disposition for HTML fallback, show inline
+                    } else {
+                        const filename = `Factura_${invoiceData.invoice_number}.pdf`;
+                        const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
+                        res.setHeader('Content-Type', 'application/pdf');
+                        res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
+                        res.setHeader('Content-Length', pdfBuffer.length);
+                    }
+
                     res.setHeader('X-Content-Type-Options', 'nosniff');
-
-                    // Relaxed CSP for PDF viewer to allow its own internal blobs if needed, 
-                    // but encouraging direct serving.
                     res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src 'self';");
 
                     res.send(pdfBuffer);
 
-                } catch (pdfError) {
-                    console.error('PDF generation error:', pdfError);
-                    res.status(500).json({ "error": "Error generating PDF: " + pdfError.message });
+                } catch (generalError) {
+                    console.error('Final PDF/HTML endpoint error:', generalError);
+                    res.status(500).json({ "error": "Error generating invoice: " + generalError.message });
                 }
             });
         });

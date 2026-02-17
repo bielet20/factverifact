@@ -1,7 +1,15 @@
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
+const path = require('path');
 
-const DBSOURCE = process.env.DB_PATH || (fs.existsSync('/app/data') ? '/app/data/invoices.db' : './data/invoices.db');
+// FOR TESTING ON MAC: Use /tmp to bypass folder restrictions
+const tmpDb = '/tmp/invoices_fact.db';
+const dockerDb = '/app/data/invoices.db';
+
+const DBSOURCE = process.env.DB_PATH ||
+    (fs.existsSync(dockerDb) ? dockerDb : tmpDb);
+
+console.log(`[Database] Using source: ${DBSOURCE}`);
 
 let db = new sqlite3.Database(DBSOURCE, (err) => {
     if (err) {
@@ -122,7 +130,8 @@ let db = new sqlite3.Database(DBSOURCE, (err) => {
                         { name: 'is_cancelled', def: 'INTEGER DEFAULT 0' },
                         { name: 'cancellation_date', def: 'TEXT' },
                         { name: 'cancellation_reason', def: 'TEXT' },
-                        { name: 'verifactu_signature', def: 'TEXT' }
+                        { name: 'verifactu_signature', def: 'TEXT' },
+                        { name: 'is_deleted', def: 'INTEGER DEFAULT 0' }
                     ];
 
                     columnsToAdd.forEach(col => {
