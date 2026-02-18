@@ -528,6 +528,26 @@
         </div>
     </div>
 
+    <!-- Custom Confirmation Modal -->
+    <div id="confirmDeleteModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>⚠️ Confirmar Eliminación</h3>
+                <button class="modal-close" id="closeDeleteModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas ocultar esta factura? Podrás seguir consultándola en el historial
+                    completo si es necesario, pero no aparecerá en la vista principal.</p>
+                <p style="margin-top: 1rem; font-size: 0.85rem; color: #ef4444;">* Esta acción es reversible por un
+                    administrador.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-secondary" id="cancelDeleteBtn">Cancelar</button>
+                <button class="btn-danger" id="confirmDeleteBtn">🗑️ Confirmar Ocultar</button>
+            </div>
+        </div>
+    </div>
+
     <!-- USERS TAB (Admin only) -->
     <div id="users-tab" class="tab-content">
         <section class="card form-section">

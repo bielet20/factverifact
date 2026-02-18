@@ -1407,9 +1407,44 @@ document.addEventListener('DOMContentLoaded', async () => {
         showNotification('⏳ Iniciando descarga de PDF...', 'info');
     };
 
-    window.deleteInvoice = async function (id) {
-        if (!confirm('¿Estás seguro de que deseas ocultar/eliminar esta factura? (Se mantendrá en el sistema pero no se verá en la lista)')) return;
+    window.deleteInvoice = function (id) {
+        const modal = document.getElementById('confirmDeleteModal');
+        const confirmBtn = document.getElementById('confirmDeleteBtn');
+        const cancelBtn = document.getElementById('cancelDeleteBtn');
+        const closeBtn = document.getElementById('closeDeleteModal');
 
+        if (!modal || !confirmBtn || !cancelBtn || !closeBtn) {
+            // Fallback if modal elements missing
+            if (confirm('¿Estás seguro de que deseas ocultar/eliminar esta factura?')) {
+                executeDelete(id);
+            }
+            return;
+        }
+
+        modal.classList.remove('hidden');
+
+        const closeModal = () => {
+            modal.classList.add('hidden');
+            confirmBtn.onclick = null;
+            cancelBtn.onclick = null;
+            closeBtn.onclick = null;
+        };
+
+        confirmBtn.onclick = async () => {
+            closeModal();
+            await executeDelete(id);
+        };
+
+        cancelBtn.onclick = closeModal;
+        closeBtn.onclick = closeModal;
+
+        // Close on click outside
+        modal.onclick = (e) => {
+            if (e.target === modal) closeModal();
+        };
+    };
+
+    async function executeDelete(id) {
         try {
             const response = await fetch(`/api/invoices/${id}`, {
                 method: 'DELETE',
@@ -1427,7 +1462,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             console.error('Error deleting invoice:', error);
             showNotification('❌ Error de conexión', 'error');
         }
-    };
+    }
 
     window.previewPDF = function (invoiceId, invoiceNumber) {
         const modal = document.getElementById('pdfModal');
