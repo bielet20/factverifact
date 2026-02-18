@@ -1,47 +1,6 @@
-# Dependencies
+*.db
+data/*.db
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# Environment
-.env
-.env.local
-.env.production
-
-# Database
-# *.db
-*.db-journal
-data/
-!data/invoices.db
-
-# Uploads (logos, etc)
-public/uploads/
-
-# Backups
-backups/
-*.zip
-
-# Logs
-logs/
-*.log
-
-# OS
 .DS_Store
-Thumbs.db
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Build
-dist/
-build/
-
-# Temporary files
-tmp/
-temp/
-*.tmp
+database_v2/
+.env
