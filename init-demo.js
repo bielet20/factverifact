@@ -12,8 +12,8 @@ async function initializeDemoData() {
         console.log('✅ Usuario admin creado');
 
         // 2. Crear empresa demo "FACTAPP S.L."
-        db.run(`INSERT OR IGNORE INTO companies (id, name, cif, address, city, postal_code, phone, email) 
-                VALUES (1, 'FACTAPP S.L.', 'B12345678', 'Calle Mayor 123', 'Palma', '07001', '971123456', 'info@factapp.com')`,
+        db.run(`INSERT OR IGNORE INTO companies (id, company_name, cif, address, phone, email) 
+                VALUES (1, 'FACTAPP S.L.', 'B12345678', 'Calle Mayor 123', '971123456', 'info@factapp.com')`,
             (err) => {
                 if (err) console.error('Error creando empresa:', err);
                 else console.log('✅ Empresa demo creada: FACTAPP S.L.');
@@ -21,20 +21,20 @@ async function initializeDemoData() {
 
         // 3. Crear artículos/servicios de fontanería
         const articles = [
-            { name: 'Reparación de fuga', description: 'Reparación de fuga en tubería', price: 45.00, type: 'service' },
-            { name: 'Instalación de grifo', description: 'Instalación de grifo monomando', price: 65.00, type: 'service' },
-            { name: 'Desatasco de tubería', description: 'Desatasco profesional', price: 80.00, type: 'service' },
-            { name: 'Grifo monomando', description: 'Grifo monomando cromado', price: 35.00, type: 'product' },
-            { name: 'Tubo PVC 32mm', description: 'Tubo PVC presión 32mm (metro)', price: 2.50, type: 'product' },
-            { name: 'Codo PVC 90°', description: 'Codo PVC 90 grados 32mm', price: 1.20, type: 'product' },
-            { name: 'Revisión general', description: 'Revisión completa de instalación', price: 55.00, type: 'service' },
-            { name: 'Mano de obra', description: 'Hora de mano de obra', price: 35.00, type: 'service' }
+            { name: 'Reparación de fuga', description: 'Reparación de fuga en tubería', price: 45.00 },
+            { name: 'Instalación de grifo', description: 'Instalación de grifo monomando', price: 65.00 },
+            { name: 'Desatasco de tubería', description: 'Desatasco profesional', price: 80.00 },
+            { name: 'Grifo monomando', description: 'Grifo monomando cromado', price: 35.00 },
+            { name: 'Tubo PVC 32mm', description: 'Tubo PVC presión 32mm (metro)', price: 2.50 },
+            { name: 'Codo PVC 90°', description: 'Codo PVC 90 grados 32mm', price: 1.20 },
+            { name: 'Revisión general', description: 'Revisión completa de instalación', price: 55.00 },
+            { name: 'Mano de obra', description: 'Hora de mano de obra', price: 35.00 }
         ];
 
         articles.forEach((article, index) => {
-            db.run(`INSERT OR IGNORE INTO articles (id, name, description, price, type) 
+            db.run(`INSERT OR IGNORE INTO articles (id, name, description, unit_price, vat_rate) 
                     VALUES (?, ?, ?, ?, ?)`,
-                [index + 1, article.name, article.description, article.price, article.type],
+                [index + 1, article.name, article.description, article.price, 21],
                 (err) => {
                     if (err) console.error(`Error creando artículo ${article.name}:`, err);
                 });
@@ -46,12 +46,10 @@ async function initializeDemoData() {
             const invoiceDate = new Date().toISOString().split('T')[0];
             db.run(`INSERT OR IGNORE INTO invoices (
                     id, company_id, invoice_number, date, client_type, client_name, 
-                    client_cif, client_address, subtotal, iva_amount, total, 
-                    verifactu_enabled, is_cancelled
+                    client_cif, client_address, subtotal, total_vat, total, is_cancelled
                 ) VALUES (
                     1, 1, 'F-2024-001', ?, 'empresa', 'Hotel Mediterráneo S.L.', 
-                    'B87654321', 'Paseo Marítimo 45, Palma', 127.50, 26.78, 154.28, 
-                    0, 0
+                    'B87654321', 'Paseo Marítimo 45, Palma', 145.00, 30.45, 175.45, 0
                 )`, [invoiceDate], function (err) {
                 if (err) {
                     console.error('Error creando factura demo:', err);
@@ -67,11 +65,13 @@ async function initializeDemoData() {
 
                     invoiceItems.forEach((item, index) => {
                         const lineTotal = item.quantity * item.unit_price;
+                        const lineVat = lineTotal * 0.21;
+                        const lineTotalWithVat = lineTotal + lineVat;
                         db.run(`INSERT INTO invoice_items (
-                                invoice_id, line_number, article_id, description, 
-                                quantity, unit_price, line_total
-                            ) VALUES (1, ?, ?, ?, ?, ?, ?)`,
-                            [index + 1, item.article_id, item.description, item.quantity, item.unit_price, lineTotal]);
+                                invoice_id, article_id, description, 
+                                quantity, unit_price, vat_rate, line_total, line_vat, line_total_with_vat, sort_order
+                            ) VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                            [item.article_id, item.description, item.quantity, item.unit_price, 21, lineTotal, lineVat, lineTotalWithVat, index + 1]);
                     });
                     console.log('✅ Líneas de factura demo creadas');
                 }

@@ -1216,3 +1216,25 @@ tbody tr:hover {
         width: 100%;
     }
 }
+
+/* Proforma Styles */
+.badge-proforma {
+    background-color: #e0e7ff;
+    color: #4338ca;
+    border: 1px solid #c7d2fe;
+}
+
+.proforma-banner {
+    background-color: #e0f2fe;
+    color: #0369a1;
+    border: 1px solid #bae6fd;
+}
+
+.btn-proforma {
+    background-color: #7c3aed;
+    color: white;
+}
+
+.btn-proforma:hover {
+    background-color: #6d28d9;
+}
