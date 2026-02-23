@@ -90,7 +90,10 @@ async function generateInvoicePDF(invoiceData, companyData) {
         let pdfBuffer;
         try {
             const page = await browser.newPage();
-            await page.setContent(html, { waitUntil: 'networkidle0' });
+            await page.setContent(html, {
+                waitUntil: 'networkidle2',
+                timeout: 60000
+            });
 
             pdfBuffer = await page.pdf({
                 format: 'A4',

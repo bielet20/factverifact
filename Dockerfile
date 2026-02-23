@@ -16,6 +16,9 @@ RUN apk add --no-cache \
     ca-certificates \
     ttf-freefont \
     font-noto \
+    ttf-liberation \
+    libstdc++ \
+    dbus \
     libx11 \
     libxcb \
     libxcomposite \
@@ -26,7 +29,8 @@ RUN apk add --no-cache \
     libxtst \
     pango \
     cups-libs \
-    mesa-gbm
+    mesa-gbm \
+    udev
 
 # Configurar Puppeteer para usar el binario del sistema y saltar descarga de Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
