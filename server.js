@@ -1977,7 +1977,8 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                         // Security headers for PDF
                         res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;");
 
-                        res.send(pdfBuffer);
+                        // Ensure we send binary data (prevents JSON serialization if pdfBuffer is Uint8Array)
+                        res.send(Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer));
                     }
 
                 } catch (generalError) {

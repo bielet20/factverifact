@@ -104,7 +104,7 @@ async function generateInvoicePDF(invoiceData, companyData) {
             if (browser) await browser.close();
         }
 
-        return pdfBuffer;
+        return Buffer.from(pdfBuffer);
 
     } catch (error) {
         console.error('Error generating PDF:', error);
