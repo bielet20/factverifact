@@ -67,34 +67,15 @@ async function generateInvoicePDF(invoiceData, companyData) {
 
         const html = await renderInvoiceHTML(invoiceData, companyData);
 
-        // Launch Puppeteer with extreme isolation
-        const crypto = require('crypto');
-        const sessionID = crypto.randomBytes(8).toString('hex');
-        const userDataDir = path.join('/tmp/factapp/p', sessionID);
-
-        if (!require('fs').existsSync(userDataDir)) {
-            require('fs').mkdirSync(userDataDir, { recursive: true });
-        }
-
-        // Set isolation environment
-        process.env.HOME = userDataDir;
-        process.env.XDG_CONFIG_HOME = userDataDir;
-        process.env.TMPDIR = userDataDir;
-
         const browser = await puppeteer.launch({
             headless: true,
-            userDataDir: userDataDir,
             args: [
                 '--no-sandbox',
                 '--disable-setuid-sandbox',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--disable-features=ProcessSingleton,IsolateOrigins,site-per-process',
-                '--disable-breakpad',
-                '--disable-crash-reporter',
                 '--no-first-run',
-                '--no-default-browser-check',
-                '--remote-debugging-port=0'
+                '--no-default-browser-check'
             ]
         });
 
@@ -109,12 +90,7 @@ async function generateInvoicePDF(invoiceData, companyData) {
                 margin: { top: '20mm', right: '20mm', bottom: '20mm', left: '20mm' }
             });
         } finally {
-            await browser.close();
-            // Clean up to avoid disk filling
-            try {
-                const fsExtra = require('fs');
-                if (fsExtra.rmSync) fsExtra.rmSync(userDataDir, { recursive: true, force: true });
-            } catch (e) { }
+            if (browser) await browser.close();
         }
 
         return pdfBuffer;

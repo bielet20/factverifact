@@ -1961,31 +1961,40 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                     let isHtmlFallback = false;
 
                     try {
+                        console.log(`[PDF] Generating PDF for invoice ${invoiceData.invoice_number}...`);
                         pdfBuffer = await generateInvoicePDF(invoiceData, companyData);
+                        console.log(`[PDF] PDF generated successfully (${pdfBuffer.length} bytes)`);
                     } catch (pdfError) {
-                        console.error('Puppeteer PDF failed, falling back to HTML:', pdfError.message);
+                        console.error(`[PDF] Puppeteer PDF failed for invoice ${invoiceData.invoice_number}:`, pdfError.message);
+                        console.error(pdfError.stack);
+
                         const { renderInvoiceHTML } = require('./pdfGenerator.js');
                         const html = await renderInvoiceHTML(invoiceData, companyData);
                         pdfBuffer = Buffer.from(html);
                         isHtmlFallback = true;
+                        console.log(`[PDF] Falling back to HTML content for invoice ${invoiceData.invoice_number}`);
                     }
 
                     // Set headers
+                    res.setHeader('X-Content-Type-Options', 'nosniff');
+
                     if (isHtmlFallback) {
-                        res.setHeader('Content-Type', 'text/html');
-                        // No disposition for HTML fallback, show inline
+                        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+                        // Show inline if fallback to HTML
+                        res.send(pdfBuffer);
                     } else {
-                        const filename = `Factura_${invoiceData.invoice_number}.pdf`;
+                        const filename = `Factura_${invoiceData.invoice_number.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                         const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
+
                         res.setHeader('Content-Type', 'application/pdf');
                         res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
                         res.setHeader('Content-Length', pdfBuffer.length);
+
+                        // Security headers for PDF
+                        res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;");
+
+                        res.send(pdfBuffer);
                     }
-
-                    res.setHeader('X-Content-Type-Options', 'nosniff');
-                    res.setHeader('Content-Security-Policy', "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-src 'self';");
-
-                    res.send(pdfBuffer);
 
                 } catch (generalError) {
                     console.error('Final PDF/HTML endpoint error:', generalError);
