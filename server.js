@@ -1976,10 +1976,11 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                             'Content-Disposition': `${disposition}; filename="${filename}"`,
                             'Content-Length': pdfBuffer.length,
                             'X-Content-Type-Options': 'nosniff',
+                            'X-PDF-Debug': 'v4-final-check',
                             'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
                         });
 
-                        res.end(pdfBuffer);
+                        res.end(Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer));
                     }
 
                 } catch (generalError) {
