@@ -67,7 +67,7 @@ async function generateInvoicePDF(invoiceData, companyData) {
 
         const html = await renderInvoiceHTML(invoiceData, companyData);
 
-        const browser = await puppeteer.launch({
+        const launchOptions = {
             headless: true,
             args: [
                 '--no-sandbox',
@@ -77,7 +77,15 @@ async function generateInvoicePDF(invoiceData, companyData) {
                 '--no-first-run',
                 '--no-default-browser-check'
             ]
-        });
+        };
+
+        // If executable path is provided via env (common in Docker), use it
+        if (process.env.PUPPETEER_EXECUTABLE_PATH) {
+            launchOptions.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+            console.log(`[PDF] Using executable path: ${launchOptions.executablePath}`);
+        }
+
+        const browser = await puppeteer.launch(launchOptions);
 
         let pdfBuffer;
         try {

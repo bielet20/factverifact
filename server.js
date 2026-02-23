@@ -2248,10 +2248,12 @@ app.get('/api/backups', requireAuth, requireRole('admin'), async (req, res) => {
 // Download backup
 app.get('/api/backups/:name/download', requireAuth, requireRole('admin'), (req, res) => {
     try {
-        const backupPath = path.join('./backups', req.params.name);
+        const backupPath = path.join(backupDir, req.params.name);
+        console.log(`[Backup] Download request for: ${backupPath}`);
 
         if (!fs.existsSync(backupPath)) {
-            return res.status(404).json({ error: 'Backup no encontrado' });
+            console.warn(`[Backup] File not found: ${backupPath}`);
+            return res.status(404).json({ error: `Backup no encontrado: ${req.params.name}` });
         }
 
         res.download(backupPath, req.params.name);
