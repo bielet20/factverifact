@@ -1970,15 +1970,16 @@ app.get('/api/invoices/:id/pdf', async (req, res) => {
                         const filename = `Factura_${invoiceData.invoice_number.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
                         const disposition = req.query.download === 'true' ? 'attachment' : 'inline';
 
-                        res.setHeader('Content-Type', 'application/pdf');
-                        res.setHeader('Content-Disposition', `${disposition}; filename="${filename}"`);
-                        res.setHeader('Content-Length', pdfBuffer.length);
+                        // Use writeHead and end for pure binary delivery
+                        res.writeHead(200, {
+                            'Content-Type': 'application/pdf',
+                            'Content-Disposition': `${disposition}; filename="${filename}"`,
+                            'Content-Length': pdfBuffer.length,
+                            'X-Content-Type-Options': 'nosniff',
+                            'Content-Security-Policy': "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
+                        });
 
-                        // Security headers for PDF
-                        res.setHeader('Content-Security-Policy', "default-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;");
-
-                        // Ensure we send binary data (prevents JSON serialization if pdfBuffer is Uint8Array)
-                        res.send(Buffer.isBuffer(pdfBuffer) ? pdfBuffer : Buffer.from(pdfBuffer));
+                        res.end(pdfBuffer);
                     }
 
                 } catch (generalError) {
