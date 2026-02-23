@@ -25,7 +25,6 @@ RUN apk add --no-cache \
     libxrandr \
     libxtst \
     pango \
-    at-spi2-atk \
     cups-libs \
     mesa-gbm
 
