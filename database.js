@@ -2,13 +2,14 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs');
 const path = require('path');
 
-// FOR TESTING ON MAC: Use /tmp to bypass folder restrictions
+// Database Path Configuration
+const isDocker = fs.existsSync('/app/data');
 const tmpDb = '/tmp/invoices_fact.db';
 const dockerDb = '/app/data/invoices.db';
 
-const DBSOURCE = process.env.DB_PATH ||
-    (fs.existsSync(dockerDb) ? dockerDb : tmpDb);
+const DBSOURCE = process.env.DB_PATH || (isDocker ? dockerDb : tmpDb);
 
+console.log(`[Database] Environment: ${isDocker ? 'Docker' : 'Standard'}`);
 console.log(`[Database] Using source: ${DBSOURCE}`);
 
 let db = new sqlite3.Database(DBSOURCE, (err) => {

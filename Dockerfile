@@ -7,14 +7,27 @@ WORKDIR /app
 # Copiar package.json y package-lock.json
 COPY package*.json ./
 
-# Instalar Chromium y dependencias necesarias para Puppeteer en Alpine
+# Instalar Chromium y todas las dependencias necesarias para Puppeteer en Alpine
 RUN apk add --no-cache \
     chromium \
     nss \
     freetype \
     harfbuzz \
     ca-certificates \
-    ttf-freefont
+    ttf-freefont \
+    font-noto \
+    libx11 \
+    libxcb \
+    libxcomposite \
+    libxdamage \
+    libxext \
+    libxfixes \
+    libxrandr \
+    libxtst \
+    pango \
+    at-spi2-atk \
+    cups-libs \
+    mesa-gbm
 
 # Configurar Puppeteer para usar el binario del sistema y saltar descarga de Chromium
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \

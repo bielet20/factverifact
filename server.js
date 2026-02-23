@@ -18,44 +18,28 @@ const HTTP_PORT = process.env.PORT || 3000;
 
 // Configurar BackupManager con rutas persistentes
 const isDocker = fs.existsSync('/app/data');
-// FOR TESTING ON MAC: Use /tmp for everything to avoid permission issues
-const TEST_TMP_ROOT = '/tmp/factapp';
-if (!fs.existsSync(TEST_TMP_ROOT)) fs.mkdirSync(TEST_TMP_ROOT, { recursive: true });
 
-// Redirigir TMPDIR para Puppeteer y otros procesos temporales
-process.env.TMPDIR = path.join(TEST_TMP_ROOT, 'tmp');
-if (!fs.existsSync(process.env.TMPDIR)) fs.mkdirSync(process.env.TMPDIR, { recursive: true });
+// Base Paths
+const backupDir = process.env.BACKUP_PATH || (isDocker ? '/app/data/backups' : '/tmp/factapp/backups');
+const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/uploads/logos' : '/tmp/factapp/uploads/logos');
+const dbPathForBackup = process.env.DB_PATH || (isDocker ? '/app/data/invoices.db' : '/tmp/invoices_fact.db');
 
-const backupDir = process.env.BACKUP_PATH || (isDocker ? '/app/data/backups' : path.join(TEST_TMP_ROOT, 'backups'));
-const dbPath = process.env.DB_PATH || (isDocker ? '/app/data/invoices.db' : '/tmp/invoices_fact.db');
-const uploadsDirForBackup = process.env.UPLOADS_PATH || (isDocker ? '/app/data/uploads/logos' : path.join(TEST_TMP_ROOT, 'uploads', 'logos'));
-
+// Ensure directories exist
 if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 if (!fs.existsSync(path.dirname(uploadsDirForBackup))) fs.mkdirSync(path.dirname(uploadsDirForBackup), { recursive: true });
 
-const backupManager = new BackupManager(backupDir, dbPath, uploadsDirForBackup);
+const backupManager = new BackupManager(backupDir, dbPathForBackup, uploadsDirForBackup);
 
-// Database Persistence & Fallback Logic
-const rootDbPath = path.join(__dirname, 'data', 'invoices.db');
+// Bundled DB Path (for fresh installations)
+const bundledDbPath = path.join(__dirname, 'data', 'invoices.db');
 
-console.log(`[Persistence] Initializing...`);
-console.log(`[Persistence] Volume DB Path: ${dbPath} (exists: ${fs.existsSync(dbPath)})`);
-console.log(`[Persistence] Bundled DB Path: ${rootDbPath} (exists: ${fs.existsSync(rootDbPath)})`);
-
-if (isDocker) {
-    // Only copy from root if the persistent volume is empty
-    if (!fs.existsSync(dbPath) && fs.existsSync(rootDbPath)) {
-        console.log('📦 Persistent volume empty. Falling back to bundled invoices.db...');
-        try {
-            fs.copyFileSync(rootDbPath, dbPath);
-            console.log('✅ Database restored from bundle successfully.');
-        } catch (err) {
-            console.error('❌ Error during database fallback:', err);
-        }
-    } else if (!fs.existsSync(dbPath)) {
-        console.log('ℹ️ No persistent database and no bundle found. A fresh database will be created.');
-    } else {
-        console.log('✅ Using existing database from persistent volume.');
+if (isDocker && !fs.existsSync(dbPathForBackup) && fs.existsSync(bundledDbPath)) {
+    console.log('📦 Persistent volume empty. Seeding with bundled invoices.db...');
+    try {
+        fs.copyFileSync(bundledDbPath, dbPathForBackup);
+        console.log('✅ Database seeded successfully.');
+    } catch (err) {
+        console.error('❌ Error during database seeding:', err);
     }
 }
 
