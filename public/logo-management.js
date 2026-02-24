@@ -46,7 +46,7 @@ if (removeLogoBtn) {
     removeLogoBtn.addEventListener('click', async () => {
         if (window.currentCompanyId) {
             // Delete logo from server
-            if (confirm('¿Estás seguro de eliminar el logo?')) {
+            if (await window.customConfirm('¿Estás seguro de eliminar el logo de la empresa?')) {
                 await deleteCompanyLogo(window.currentCompanyId);
             }
         } else {
