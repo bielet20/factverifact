@@ -102,9 +102,12 @@ app.use((req, res, next) => {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Create uploads directory if it doesn't exist
-// Create uploads directory in persistent volume
-const uploadsDir = process.env.UPLOADS_PATH || (fs.existsSync('/app/data') ? '/app/data/uploads/logos' : '/tmp/factapp/uploads/logos');
+// Ensure logos and other uploads are accessible via /uploads path
+const uploadsBaseDir = process.env.UPLOADS_PATH ? path.dirname(process.env.UPLOADS_PATH) : (fs.existsSync('/app/data') ? '/app/data/uploads' : path.join(__dirname, 'public', 'uploads'));
+const uploadsDir = path.join(uploadsBaseDir, 'logos');
+
+app.use('/uploads', express.static(uploadsBaseDir));
+
 if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
 }

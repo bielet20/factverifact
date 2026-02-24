@@ -87,13 +87,12 @@ header h1 {
     font-size: 2.5rem;
     font-weight: 700;
     margin-bottom: 0.5rem;
-    text-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 header p {
     font-size: 1.1rem;
-    opacity: 1;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    opacity: 0.95;
 }
 
 /* Tabs Navigation */
@@ -109,7 +108,9 @@ header p {
     border: 1px solid rgba(255, 255, 255, 0.3);
     overflow-x: auto;
     scrollbar-width: none;
+    /* Firefox */
     -ms-overflow-style: none;
+    /* IE/Edge */
 }
 
 .tabs::-webkit-scrollbar {

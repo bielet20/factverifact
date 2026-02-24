@@ -39,10 +39,37 @@ async function renderInvoiceHTML(invoiceData, companyData) {
     let companyLogo = null;
     if (companyData.logo) {
         try {
-            const logoPath = path.join(__dirname, 'public', companyData.logo);
-            const logoBuffer = await fs.readFile(logoPath);
-            const logoExt = path.extname(companyData.logo).substring(1);
-            companyLogo = `data:image/${logoExt};base64,${logoBuffer.toString('base64')}`;
+            // Priority locations for logo file
+            const possiblePaths = [
+                path.join(__dirname, 'public', companyData.logo), // Relative to public (e.g. /uploads/logos/file.png)
+                path.join(__dirname, companyData.logo),        // Relative to root
+                path.join(__dirname, 'public', 'uploads', 'logos', path.basename(companyData.logo)), // Standard upload dir
+                // Docker persistent paths
+                path.join('/app/data/uploads/logos', path.basename(companyData.logo)),
+                path.join('/app/data/uploads', path.basename(companyData.logo)),
+                // Add persistent volume path if configured in environment
+                process.env.UPLOADS_PATH ? (process.env.UPLOADS_PATH.endsWith('logos') ? path.join(process.env.UPLOADS_PATH, path.basename(companyData.logo)) : path.join(process.env.UPLOADS_PATH, 'logos', path.basename(companyData.logo))) : null
+            ].filter(p => p !== null);
+
+            let logoPath = null;
+            for (const p of possiblePaths) {
+                try {
+                    await fs.access(p);
+                    logoPath = p;
+                    console.log(`[PDF] Found logo at: ${logoPath}`);
+                    break;
+                } catch (e) {
+                    // Continue to next path
+                }
+            }
+
+            if (logoPath) {
+                const logoBuffer = await fs.readFile(logoPath);
+                const logoExt = path.extname(logoPath).substring(1) || 'png';
+                companyLogo = `data:image/${logoExt};base64,${logoBuffer.toString('base64')}`;
+            } else {
+                console.warn(`[PDF] Logo not found in any expected location: ${companyData.logo}`);
+            }
         } catch (err) {
             console.warn('Could not load company logo:', err.message);
         }
