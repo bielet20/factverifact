@@ -101,12 +101,12 @@ header p {
     display: flex;
     gap: 0.5rem;
     margin-bottom: 2rem;
-    background: rgba(255, 255, 255, 0.15);
-    /* Much more transparent for better glass effect */
+    background: rgba(255, 255, 255, 0.25);
+    /* Balanced transparency for glass effect and contrast */
     padding: 0.5rem;
     border-radius: 12px;
     backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.3);
     overflow-x: auto;
     scrollbar-width: none;
     -ms-overflow-style: none;
@@ -122,18 +122,19 @@ header p {
     padding: 0.75rem 1.5rem;
     border: none;
     background: transparent;
-    color: rgba(255, 255, 255, 0.9);
-    /* High contrast white on dark gradient */
+    color: #0f172a;
+    /* High contrast dark text for white-ish backgrounds */
     font-weight: 600;
     font-size: 1rem;
     cursor: pointer;
     border-radius: 8px;
     transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    white-space: nowrap;
 }
 
 .tab-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(255, 255, 255, 0.3);
+    color: var(--primary-color);
 }
 
 .tab-btn.active {
