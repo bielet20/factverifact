@@ -27,6 +27,13 @@ handlebars.registerHelper('eq', function (a, b) {
     return a === b;
 });
 
+handlebars.registerHelper('uppercase', function (str) {
+    if (str && typeof str === 'string') {
+        return str.toUpperCase();
+    }
+    return str;
+});
+
 async function renderInvoiceHTML(invoiceData, companyData) {
     // Read the HTML template
     const templatePath = path.join(__dirname, 'templates', 'invoice.html');

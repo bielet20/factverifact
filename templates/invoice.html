@@ -281,10 +281,15 @@
 
     <div class="client-box">
         <div class="label">Cliente</div>
-        <p><strong>{{invoice.client_name}}</strong></p>
+        <p><strong>{{uppercase invoice.client_name}}</strong></p>
         {{#if invoice.client_address}}<p>{{invoice.client_address}}</p>{{/if}}
         {{#if invoice.client_cif}}<p>{{invoice.client_cif}}</p>{{/if}}
-        {{#if invoice.client_type}}<p>{{invoice.client_type}}</p>{{/if}}
+        {{#if invoice.client_type}}
+        <p>
+            {{#if (eq invoice.client_type 'empresa')}}EMPRESA{{/if}}
+            {{#if (eq invoice.client_type 'particular')}}PARTICULAR{{/if}}
+        </p>
+        {{/if}}
     </div>
 
     <div class="invoice-meta">
