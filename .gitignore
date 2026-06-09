@@ -4,3 +4,18 @@ node_modules/
 .DS_Store
 database_v2/
 .env
+.env.*
+
+# Backups y archivos generados — nunca en git
+*.zip
+backups/
+"documentos pruebas"/
+
+# PDFs y assets generados por Puppeteer
+*.pdf
+*.pdf.png
+factura_template.png
+public/uploads/
+
+# Scripts de debug locales
+test-*.js
