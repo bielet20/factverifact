@@ -1,4 +1,5 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const session = require('express-session');
 const cors = require('cors');
 const path = require('path');
@@ -44,7 +45,25 @@ if (isDocker && !fs.existsSync(dbPathForBackup) && fs.existsSync(bundledDbPath))
 }
 
 // Trust proxy - CRITICAL for production behind reverse proxy (Coolify, SSL termination, etc)
-app.set('trust proxy', true); // Trust all proxies in the chain
+app.set('trust proxy', 1);
+
+// Rate limiting
+const globalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many requests, please try again later.' },
+});
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Too many login attempts, please try again in 15 minutes.' },
+});
+app.use(globalLimiter);
+app.use('/api/auth/login', authLimiter);
 
 // Global Security Headers
 app.use((req, res, next) => {
